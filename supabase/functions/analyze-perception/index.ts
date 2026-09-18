@@ -11,7 +11,7 @@ const corsHeaders = { "Access-Control-Allow-Headers": "authorization, x-client-i
 type FieldValue = { value: string | null; evidence: string; confidence: number };
 type Interpretation = { single_issue: boolean; interpretation: string; fields: Record<(typeof FIELD_NAMES)[number], FieldValue>; context: string[]; entity_candidates: { name: string; suggested_type: string; evidence: string; confidence: number }[]; clarification_required: boolean; clarification_question: string | null; confirmation_required: boolean };
 
-const fieldSchema = { type: "object", properties: { value: { type: ["string", "null"] }, evidence: { type: "string", enum: EVIDENCE }, confidence: { type: "number", minimum: 0, maximum: 1 } }, required: ["value", "evidence", "confidence"] };
+const fieldSchema = { type: "object", properties: { value: { type: "string", nullable: true }, evidence: { type: "string", enum: ["observed", "inferred", "suggested"] }, confidence: { type: "number", minimum: 0, maximum: 1 } }, required: ["value", "evidence", "confidence"] };
 const responseSchema = {
   type: "object",
   properties: {
@@ -19,7 +19,7 @@ const responseSchema = {
     fields: { type: "object", properties: Object.fromEntries(FIELD_NAMES.map((name) => [name, fieldSchema])), required: FIELD_NAMES },
     context: { type: "array", items: { type: "string" }, maxItems: 10 },
     entity_candidates: { type: "array", items: { type: "object", properties: { name: { type: "string" }, suggested_type: { type: "string", enum: ["processo", "subprocesso", "sistema"] }, evidence: { type: "string", enum: EVIDENCE }, confidence: { type: "number", minimum: 0, maximum: 1 } }, required: ["name", "suggested_type", "evidence", "confidence"] } },
-    clarification_required: { type: "boolean" }, clarification_question: { type: ["string", "null"] }, confirmation_required: { type: "boolean" },
+    clarification_required: { type: "boolean" }, clarification_question: { type: "string", nullable: true }, confirmation_required: { type: "boolean" },
   },
   required: ["single_issue", "interpretation", "fields", "context", "entity_candidates", "clarification_required", "clarification_question", "confirmation_required"],
 } as const;
