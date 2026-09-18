@@ -9,7 +9,7 @@ Este roteiro valida somente conectividade, estabilidade, JSON válido, tratament
 1. Crie um projeto Supabase e execute a migration em `supabase/migrations/20260918120000_mvp0_call_audits.sql`.
 2. Defina os secrets no Supabase:
    - `GEMINI_API_KEY`: chave privada do Gemini;
-   - `GEMINI_MODEL`: opcional; padrão `gemini-2.5-flash`;
+   - `GEMINI_MODEL`: opcional; padrão `gemini-3.5-flash-lite`;
    - `ALLOWED_ORIGIN`: URL exata do GitHub Pages, por exemplo `https://organizacao.github.io`.
 3. Publique a função `analyze-perception`. A função requer o token anônimo do Supabase na chamada; mantenha a verificação JWT habilitada.
 4. Preencha `js/config.js` com a URL e a chave anônima pública do Supabase.

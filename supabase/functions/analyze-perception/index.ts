@@ -55,7 +55,7 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return json(405, { error: { code: "method_not_allowed", message: "Use POST." } }, origin);
 
   const startedAt = Date.now();
-  const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
+  const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-3.5-flash-lite";
   try {
     const payload = await request.json();
     const message = typeof payload?.message === "string" ? payload.message.trim() : "";
