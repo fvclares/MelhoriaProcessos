@@ -1,14 +1,14 @@
 # Plataforma de Inteligência Operacional
 
-Este repositório está na fase **MVP 3 — Dicionário Operacional Evolutivo**.
+Este repositório está na fase **MVP 4 — Inteligência de recorrência**.
 
 O fluxo implementado nesta fase é:
 
 ```text
-GitHub Pages → Supabase Edge Function → Gemini → revisão humana → registro auditável → dicionário governado
+GitHub Pages → Supabase Edge Function → Gemini → revisão humana → registro auditável → dicionário governado → indicadores
 ```
 
-Não há analytics de recorrência, dashboards, agrupamento semântico ou embeddings nesta etapa.
+Não há agrupamento semântico, embeddings, multiempresa ou recursos SaaS nesta etapa.
 
 ## Preparação local
 
@@ -21,10 +21,10 @@ Não há analytics de recorrência, dashboards, agrupamento semântico ou embedd
    ALLOWED_ORIGIN=<url exata do GitHub Pages>
    ```
 
-5. Publique `supabase/functions/analyze-perception`, `supabase/functions/record-perception` e `supabase/functions/dictionary-admin` como Edge Functions.
+5. Publique `supabase/functions/analyze-perception`, `supabase/functions/record-perception`, `supabase/functions/dictionary-admin` e `supabase/functions/operational-analytics` como Edge Functions.
 6. Publique a raiz do repositório no GitHub Pages.
 
-Os roteiros de validação estão em [docs/MVP_VALIDATION.md](docs/MVP_VALIDATION.md), [docs/MVP1_VALIDATION.md](docs/MVP1_VALIDATION.md), [docs/MVP2_VALIDATION.md](docs/MVP2_VALIDATION.md) e [docs/MVP3_VALIDATION.md](docs/MVP3_VALIDATION.md).
+Os roteiros de validação estão em [docs/MVP_VALIDATION.md](docs/MVP_VALIDATION.md), [docs/MVP1_VALIDATION.md](docs/MVP1_VALIDATION.md), [docs/MVP2_VALIDATION.md](docs/MVP2_VALIDATION.md), [docs/MVP3_VALIDATION.md](docs/MVP3_VALIDATION.md) e [docs/MVP4_VALIDATION.md](docs/MVP4_VALIDATION.md).
 
 ## Segurança
 

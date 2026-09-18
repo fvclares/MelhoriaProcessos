@@ -35,4 +35,16 @@ th, td { padding: 12px 8px; border-bottom: 1px solid #e5eaf1; text-align: left; 
 th { color: #475569; }
 .evidence { margin-top: 20px; padding: 16px; border-radius: 10px; background: #f8fafc; }
 .evidence h2 { margin-top: 0; font-size: 1.1rem; }
+.metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 20px 0; }
+.metric, .analytics-card { padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.metric { display: grid; gap: 6px; color: #475569; }
+.metric strong { color: #1e3a8a; font-size: 1.8rem; }
+.analytics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.analytics-card h2 { margin: 0 0 16px; font-size: 1.1rem; }
+.bar-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; margin: 10px 0; font-size: .88rem; }
+.bar-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-rail { grid-column: 1 / -1; height: 7px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
+.bar-fill { height: 100%; border-radius: inherit; background: #2563eb; }
+.coverage { margin: 18px 0 0; color: #64748b; font-size: .9rem; }
+@media (max-width: 700px) { .analytics-grid { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .panel { padding: 24px; } }

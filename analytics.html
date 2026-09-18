@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inteligência Operacional — Indicadores</title>
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <main class="layout admin-layout">
+      <section class="panel admin-panel">
+        <p class="eyebrow">MVP 4 · Inteligência de recorrência</p>
+        <h1>Indicadores operacionais</h1>
+        <p class="intro">Os indicadores usam somente percepções confirmadas. Eles mostram recorrência exata, não similaridade semântica.</p>
+        <form id="login-form" class="review-form">
+          <label>E-mail<input id="email" type="email" autocomplete="username" required /></label>
+          <label>Senha<input id="password" type="password" autocomplete="current-password" required /></label>
+          <button type="submit">Entrar</button>
+        </form>
+        <section id="dashboard" hidden>
+          <div class="admin-actions"><button id="refresh" type="button">Atualizar indicadores</button><button id="logout" type="button" class="secondary">Sair</button></div>
+          <p id="analytics-status" class="status" aria-live="polite"></p>
+          <div id="metrics" class="metrics"></div>
+          <div class="analytics-grid">
+            <section class="analytics-card"><h2>Problemas recorrentes</h2><div id="recurrences"></div></section>
+            <section class="analytics-card"><h2>Concentração por sistema</h2><div id="systems"></div></section>
+            <section class="analytics-card"><h2>Concentração por processo</h2><div id="processes"></div></section>
+            <section class="analytics-card"><h2>Evolução — últimos 30 dias</h2><div id="evolution"></div></section>
+          </div>
+          <p id="unit-coverage" class="coverage"></p>
+        </section>
+      </section>
+    </main>
+    <script src="js/config.js"></script>
+    <script type="module" src="js/analytics.js"></script>
+  </body>
+</html>
