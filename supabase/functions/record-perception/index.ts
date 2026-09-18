@@ -62,7 +62,7 @@ Deno.serve(async (request) => {
       sistema: cleanText(classification.sistema),
       categoria_problema: classification.categoria_problema,
     };
-    const { data, error } = await userClient.rpc("persist_validated_perception", { p_session_id: payload.analysis_id, p_classification: canonical });
+    const { data, error } = await serviceClient.rpc("persist_validated_perception", { p_session_id: payload.analysis_id, p_classification: canonical, p_actor_id: userData.user.id });
     if (error) {
       const code = error.message.includes("analysis_session_unavailable") ? "analysis_session_unavailable" : "persistence_failed";
       return reply(code === "analysis_session_unavailable" ? 409 : 500, { error: { code, message: code === "analysis_session_unavailable" ? "Esta análise expirou ou já foi confirmada. Faça uma nova interpretação." : "Não foi possível registrar a percepção." } }, origin);

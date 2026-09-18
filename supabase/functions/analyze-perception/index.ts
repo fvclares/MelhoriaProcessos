@@ -77,10 +77,10 @@ async function resolveCompanyId(token: string): Promise<{ companyId: string; use
   return { companyId: membership.company_id, userClient };
 }
 async function createAnalysisSession(message: string, rawResponse: unknown, interpretation: Interpretation, token: string, companyId: string) {
-  const url = Deno.env.get("SUPABASE_URL"); const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-  if (!url || !anonKey) throw new Error("persistence_not_configured");
-  const userClient = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
-  const { data, error } = await userClient.from("analysis_sessions").insert({
+  const url = Deno.env.get("SUPABASE_URL"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceKey) throw new Error("persistence_not_configured");
+  const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const { data, error } = await serviceClient.from("analysis_sessions").insert({
     original_text: message, prompt_version: PROMPT_VERSION, model: MODEL, raw_response: rawResponse, proposed_interpretation: interpretation, company_id: companyId,
   }).select("id").single();
   if (error || !data?.id) throw new Error("analysis_session_failed");
