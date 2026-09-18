@@ -6,13 +6,13 @@ function configuration() {
   return config;
 }
 
-async function invoke(functionName, payload) {
+async function invoke(functionName, payload, accessToken) {
   const { supabaseUrl, supabaseAnonKey } = configuration();
   const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/${functionName}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${supabaseAnonKey}`,
+      Authorization: `Bearer ${accessToken || supabaseAnonKey}`,
       apikey: supabaseAnonKey,
     },
     body: JSON.stringify(payload),
@@ -27,3 +27,4 @@ async function invoke(functionName, payload) {
 
 export function analyzePerception(message) { return invoke("analyze-perception", { message }); }
 export function recordPerception(analysisId, classification) { return invoke("record-perception", { analysis_id: analysisId, classification }); }
+export function dictionaryAdmin(operation, accessToken, details = {}) { return invoke("dictionary-admin", { operation, ...details }, accessToken); }
