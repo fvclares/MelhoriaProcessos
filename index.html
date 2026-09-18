@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Validação técnica da Plataforma de Inteligência Operacional." />
-    <title>Inteligência Operacional — MVP 1</title>
+    <meta name="description" content="Plataforma de Inteligência Operacional." />
+    <title>Inteligência Operacional — MVP 2</title>
     <link rel="stylesheet" href="css/app.css" />
   </head>
   <body>
     <main class="layout">
       <section class="panel" aria-labelledby="page-title">
-        <p class="eyebrow">MVP 1 · Interpretação</p>
+        <p class="eyebrow">MVP 2 · Confirmação e registro</p>
         <h1 id="page-title">Percepção operacional</h1>
-        <p class="intro">Envie uma percepção operacional. A IA propõe uma interpretação estruturada, que ainda não será gravada nem homologada.</p>
+        <p class="intro">Envie uma percepção operacional, revise a interpretação e confirme os dados para criar um registro validado.</p>
 
         <form id="perception-form">
           <label for="perception">Sua percepção</label>
@@ -26,6 +26,7 @@
         <section class="response" aria-live="polite" aria-label="Resultado do teste">
           <p id="status" class="status">Aguardando um teste.</p>
           <pre id="result" hidden></pre>
+          <section id="review" class="review" hidden></section>
         </section>
       </section>
     </main>

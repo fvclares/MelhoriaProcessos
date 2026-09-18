@@ -61,6 +61,16 @@ async function audit(outcome: string, responseValid: boolean, latencyMs: number,
   const { error } = await client.from("mvp0_call_audits").insert({ model: MODEL, latency_ms: latencyMs, outcome, response_valid: responseValid, error_code: errorCode ?? null });
   if (error) console.error("MVP audit failed", error.code);
 }
+async function createAnalysisSession(message: string, rawResponse: unknown, interpretation: Interpretation) {
+  const url = Deno.env.get("SUPABASE_URL"); const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) throw new Error("persistence_not_configured");
+  const client = createClient(url, key, { auth: { persistSession: false } });
+  const { data, error } = await client.from("analysis_sessions").insert({
+    original_text: message, prompt_version: PROMPT_VERSION, model: MODEL, raw_response: rawResponse, proposed_interpretation: interpretation,
+  }).select("id").single();
+  if (error || !data?.id) throw new Error("analysis_session_failed");
+  return data.id as string;
+}
 function promptFor(message: string) {
   return `Você interpreta UMA percepção operacional em português brasileiro. Não invente fatos. Se um campo não for determinável, use valor null, evidence "suggested" e faça uma pergunta de esclarecimento. Se houver mais de um problema principal, single_issue deve ser false e a pergunta deve pedir qual registrar primeiro.\n\nTipos permitidos: reclamacao, sugestao, duvida, elogio, outro. Categorias permitidas: erro, lentidao, acesso, usabilidade, integracao, processo, informacao, outro.\n\nPara processo, subprocesso e sistema, extraia apenas termos presentes ou claramente inferíveis. Eles não são entidades homologadas. Use entity_candidates somente para termos novos ou não confirmados; nunca afirme que foram homologados. Contexto contém detalhes úteis que não viram entidades. confidence é um sinal heurístico, não uma probabilidade. confirmation_required deve ser sempre true.\n\nVersão do contrato: ${PROMPT_VERSION}.\nRelato: ${JSON.stringify(message)}`;
 }
@@ -93,8 +103,9 @@ Deno.serve(async (request) => {
     const providerBody = await provider.json(); const rawText = providerBody?.candidates?.[0]?.content?.parts?.[0]?.text;
     let parsed: unknown; try { parsed = JSON.parse(rawText); } catch { parsed = null; }
     if (!isInterpretation(parsed)) { await audit("invalid_ai_response", false, Date.now() - startedAt, "invalid_provider_json"); return json(502, { error: { code: "invalid_provider_response", message: "A IA não retornou o contrato de interpretação esperado." } }, origin); }
+    const analysis_id = await createAnalysisSession(message, providerBody, parsed);
     const latencyMs = Date.now() - startedAt; await audit("success", true, latencyMs);
-    return json(200, { contract_version: PROMPT_VERSION, model: MODEL, latency_ms: latencyMs, ...parsed }, origin);
+    return json(200, { analysis_id, contract_version: PROMPT_VERSION, model: MODEL, latency_ms: latencyMs, ...parsed }, origin);
   } catch (error) {
     const code = error instanceof Error ? error.message : "unexpected_error"; await audit("provider_error", false, Date.now() - startedAt, code.slice(0, 100)); console.error("MVP1 request failed", code);
     return json(502, { error: { code: "upstream_failure", message: "Falha temporária na conexão com a IA." } }, origin);

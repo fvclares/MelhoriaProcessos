@@ -1,5 +1,3 @@
-const FUNCTION_NAME = "analyze-perception";
-
 function configuration() {
   const config = window.APP_CONFIG;
   if (!config?.supabaseUrl || !config?.supabaseAnonKey || config.supabaseUrl.includes("SEU-PROJETO")) {
@@ -8,16 +6,16 @@ function configuration() {
   return config;
 }
 
-export async function analyzePerception(message) {
+async function invoke(functionName, payload) {
   const { supabaseUrl, supabaseAnonKey } = configuration();
-  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/${FUNCTION_NAME}`, {
+  const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/${functionName}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${supabaseAnonKey}`,
       apikey: supabaseAnonKey,
     },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify(payload),
   });
 
   const body = await response.json().catch(() => null);
@@ -26,3 +24,6 @@ export async function analyzePerception(message) {
   }
   return body;
 }
+
+export function analyzePerception(message) { return invoke("analyze-perception", { message }); }
+export function recordPerception(analysisId, classification) { return invoke("record-perception", { analysis_id: analysisId, classification }); }

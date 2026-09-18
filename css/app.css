@@ -17,4 +17,10 @@ button:disabled { cursor: wait; opacity: .65; }
 .status { margin: 0; line-height: 1.5; }
 .status.error { color: #b42318; }
 pre { overflow: auto; margin: 12px 0 0; padding: 16px; border-radius: 10px; background: #0f172a; color: #dbeafe; font-size: .85rem; white-space: pre-wrap; }
+.review { margin-top: 20px; padding: 20px; border: 1px solid #bfdbfe; border-radius: 12px; background: #f8fbff; }
+.review h2 { margin: 0 0 8px; font-size: 1.25rem; }
+.clarification { padding: 10px; border-radius: 8px; background: #fef3c7; color: #713f12; }
+.review-form { display: grid; gap: 14px; margin-top: 16px; }
+.review-form label { display: grid; gap: 7px; margin: 0; }
+.review-form input, .review-form select { width: 100%; padding: 10px; border: 1px solid #b8c7db; border-radius: 8px; color: inherit; background: #fff; font: inherit; }
 @media (max-width: 520px) { .panel { padding: 24px; } }
