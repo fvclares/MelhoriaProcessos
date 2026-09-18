@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Validação técnica da Plataforma de Inteligência Operacional." />
+    <title>Inteligência Operacional — MVP 0</title>
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="panel" aria-labelledby="page-title">
+        <p class="eyebrow">MVP 0 · Fundação técnica</p>
+        <h1 id="page-title">Teste de conexão</h1>
+        <p class="intro">Envie um texto de teste. Nesta fase, o sistema verifica apenas a conexão segura com a IA e o retorno de JSON válido.</p>
+
+        <form id="perception-form">
+          <label for="perception">Mensagem de teste</label>
+          <textarea id="perception" name="perception" maxlength="2000" required placeholder="Ex.: teste de conexão com a plataforma"></textarea>
+          <div class="form-footer">
+            <span id="character-count" aria-live="polite">0 / 2000</span>
+            <button id="submit-button" type="submit">Enviar teste</button>
+          </div>
+        </form>
+
+        <section class="response" aria-live="polite" aria-label="Resultado do teste">
+          <p id="status" class="status">Aguardando um teste.</p>
+          <pre id="result" hidden></pre>
+        </section>
+      </section>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
