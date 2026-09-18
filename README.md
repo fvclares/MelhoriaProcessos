@@ -1,14 +1,14 @@
 # Plataforma de Inteligência Operacional
 
-Este repositório está na fase **MVP 0 — Fundação Técnica**.
+Este repositório está na fase **MVP 1 — Interpretação e classificação**.
 
-O único fluxo implementado nesta fase é:
+O fluxo implementado nesta fase é:
 
 ```text
-GitHub Pages → Supabase Edge Function → Gemini → JSON validado → navegador
+GitHub Pages → Supabase Edge Function → Gemini → JSON validado e estruturado → navegador
 ```
 
-Não há classificação operacional, dicionário, embeddings ou persistência de percepções nesta etapa.
+Não há confirmação humana, persistência de percepções, dicionário operacional ou embeddings nesta etapa.
 
 ## Preparação local
 
@@ -24,7 +24,7 @@ Não há classificação operacional, dicionário, embeddings ou persistência d
 5. Publique `supabase/functions/analyze-perception` como Edge Function.
 6. Publique a raiz do repositório no GitHub Pages.
 
-O roteiro completo de implantação e validação está em [docs/MVP_VALIDATION.md](docs/MVP_VALIDATION.md).
+Os roteiros de validação estão em [docs/MVP_VALIDATION.md](docs/MVP_VALIDATION.md) e [docs/MVP1_VALIDATION.md](docs/MVP1_VALIDATION.md).
 
 ## Segurança
 

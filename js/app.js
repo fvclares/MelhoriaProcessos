@@ -19,11 +19,13 @@ form.addEventListener("submit", async (event) => {
   button.disabled = true;
   result.hidden = true;
   status.className = "status";
-  status.textContent = "Enviando o teste…";
+  status.textContent = "Interpretando a percepção…";
 
   try {
     const data = await analyzePerception(message);
-    status.textContent = `Conexão concluída em ${data.latency_ms} ms. JSON validado.`;
+    status.textContent = data.clarification_required
+      ? `A IA precisa de um esclarecimento: ${data.clarification_question}`
+      : `Interpretação recebida em ${data.latency_ms} ms. Revise os dados antes de qualquer registro.`;
     result.textContent = JSON.stringify(data, null, 2);
     result.hidden = false;
   } catch (error) {
