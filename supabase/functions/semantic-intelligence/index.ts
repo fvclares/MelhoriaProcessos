@@ -7,8 +7,12 @@ function reply(status: number, body: unknown, requestOrigin: string | null) { co
 function vector(values: unknown) { return Array.isArray(values) && values.length === DIMENSIONS && values.every((value) => typeof value === "number" && Number.isFinite(value)) ? `[${values.join(",")}]` : null; }
 
 async function embed(text: string, apiKey: string, model: string) {
-  const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ model: `models/${model}`, content: { parts: [{ text }] }, embedContentConfig: { taskType: "SEMANTIC_SIMILARITY", outputDimensionality: DIMENSIONS } }) });
-  if (!upstream.ok) throw new Error(`embedding_${upstream.status}`);
+  const upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: `models/${model}`, content: { parts: [{ text }] }, taskType: "SEMANTIC_SIMILARITY", outputDimensionality: DIMENSIONS }) });
+  if (!upstream.ok) {
+    const body = await upstream.text().catch(() => "");
+    console.error("embedding upstream failed", upstream.status, body.slice(0, 300));
+    throw new Error(`embedding_${upstream.status} ${body.slice(0, 120)}`);
+  }
   const data = await upstream.json(); const result = vector(data?.embedding?.values);
   if (!result) throw new Error("invalid_embedding_response");
   return result;
