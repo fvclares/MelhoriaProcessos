@@ -3,7 +3,7 @@ const FUNCTION_NAME = "analyze-perception";
 function configuration() {
   const config = window.APP_CONFIG;
   if (!config?.supabaseUrl || !config?.supabaseAnonKey || config.supabaseUrl.includes("SEU-PROJETO")) {
-    throw new Error("Configuração ausente. Crie js/config.js a partir de js/config.example.js.");
+    throw new Error("Configuração ausente. Preencha js/config.js com os dados públicos do Supabase.");
   }
   return config;
 }
