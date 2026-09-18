@@ -3,14 +3,21 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
   "Content-Type": "application/json; charset=utf-8",
 };
 
 type Mvp0Response = { reply: string; received_text_length: number; model: string };
 
+function normalizeOrigin(value: string | null): string | null {
+  if (!value) return null;
+  return value.trim().replace(/\/$/, "");
+}
+
 function json(status: number, body: unknown, origin: string | null) {
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
-  const accessOrigin = allowedOrigin && origin === allowedOrigin ? allowedOrigin : "null";
+  const allowedOrigin = normalizeOrigin(Deno.env.get("ALLOWED_ORIGIN") ?? null);
+  const requestOrigin = normalizeOrigin(origin);
+  const accessOrigin = allowedOrigin && requestOrigin === allowedOrigin ? allowedOrigin : (allowedOrigin ?? "");
   return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Access-Control-Allow-Origin": accessOrigin } });
 }
 
@@ -34,13 +41,16 @@ async function audit(outcome: string, responseValid: boolean, model: string, lat
 }
 
 Deno.serve(async (request) => {
-  const origin = request.headers.get("Origin");
-  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN");
-  if (!allowedOrigin || origin !== allowedOrigin) {
+  const origin = normalizeOrigin(request.headers.get("Origin"));
+  const allowedOrigin = normalizeOrigin(Deno.env.get("ALLOWED_ORIGIN") ?? null);
+  if (request.method === "OPTIONS") {
+    if (allowedOrigin && origin === allowedOrigin) {
+      return new Response(null, { status: 204, headers: { ...corsHeaders, "Access-Control-Allow-Origin": allowedOrigin } });
+    }
     return json(403, { error: { code: "origin_not_allowed", message: "Origem não autorizada." } }, origin);
   }
-  if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: { ...corsHeaders, "Access-Control-Allow-Origin": allowedOrigin } });
+  if (!allowedOrigin || origin !== allowedOrigin) {
+    return json(403, { error: { code: "origin_not_allowed", message: "Origem não autorizada." } }, origin);
   }
   if (request.method !== "POST") return json(405, { error: { code: "method_not_allowed", message: "Use POST." } }, origin);
 
