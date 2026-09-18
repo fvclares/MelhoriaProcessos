@@ -72,7 +72,17 @@ Deno.serve(async (request) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", temperature: 0 } }),
     });
-    if (!providerResponse.ok) throw new Error(`gemini_${providerResponse.status}`);
+    if (!providerResponse.ok) {
+      const errText = await providerResponse.text().catch(() => "");
+      let detail = errText;
+      try {
+        const parsedErr = JSON.parse(errText);
+        detail = parsedErr?.error?.message ?? parsedErr?.error?.status ?? errText;
+      } catch { /* mantém texto bruto */ }
+      const safeDetail = String(detail).replace(/key=[^&\s]*/gi, "key=***").slice(0, 100);
+      console.error("Gemini upstream error", providerResponse.status, safeDetail);
+      throw new Error(`gemini_${providerResponse.status} ${safeDetail}`.slice(0, 100));
+    }
 
     const providerBody = await providerResponse.json();
     const rawText = providerBody?.candidates?.[0]?.content?.parts?.[0]?.text;
