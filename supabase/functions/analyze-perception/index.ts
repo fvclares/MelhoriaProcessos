@@ -61,12 +61,27 @@ async function audit(outcome: string, responseValid: boolean, latencyMs: number,
   const { error } = await client.from("mvp0_call_audits").insert({ model: MODEL, latency_ms: latencyMs, outcome, response_valid: responseValid, error_code: errorCode ?? null });
   if (error) console.error("MVP audit failed", error.code);
 }
-async function createAnalysisSession(message: string, rawResponse: unknown, interpretation: Interpretation) {
-  const url = Deno.env.get("SUPABASE_URL"); const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !key) throw new Error("persistence_not_configured");
-  const client = createClient(url, key, { auth: { persistSession: false } });
-  const { data, error } = await client.from("analysis_sessions").insert({
-    original_text: message, prompt_version: PROMPT_VERSION, model: MODEL, raw_response: rawResponse, proposed_interpretation: interpretation,
+async function resolveCompanyId(token: string): Promise<{ companyId: string; userClient: ReturnType<typeof createClient> }> {
+  const url = Deno.env.get("SUPABASE_URL"); const anonKey = Deno.env.get("SUPABASE_ANON_KEY"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !anonKey || !serviceKey) throw new Error("persistence_not_configured");
+  const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
+  if (userError || !userData.user) throw new Error("auth_required");
+  const userClient = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
+  // também valida via service para obter company (bypass RLS se necessario)
+  const { data: membership, error: memberError } = await serviceClient.from("company_members").select("company_id").eq("user_id", userData.user.id).limit(1).maybeSingle();
+  if (memberError || !membership?.company_id) throw new Error("company_not_found");
+  // verifica que o JWT realmente tem acesso via RLS (defesa em profundidade)
+  const { data: rlsCheck } = await userClient.from("companies").select("id").eq("id", membership.company_id).maybeSingle();
+  if (!rlsCheck) throw new Error("company_not_found");
+  return { companyId: membership.company_id, userClient };
+}
+async function createAnalysisSession(message: string, rawResponse: unknown, interpretation: Interpretation, token: string, companyId: string) {
+  const url = Deno.env.get("SUPABASE_URL"); const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!url || !anonKey) throw new Error("persistence_not_configured");
+  const userClient = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
+  const { data, error } = await userClient.from("analysis_sessions").insert({
+    original_text: message, prompt_version: PROMPT_VERSION, model: MODEL, raw_response: rawResponse, proposed_interpretation: interpretation, company_id: companyId,
   }).select("id").single();
   if (error || !data?.id) throw new Error("analysis_session_failed");
   return data.id as string;
@@ -84,6 +99,17 @@ Deno.serve(async (request) => {
   if (!allowedOrigin || origin !== allowedOrigin) return json(403, { error: { code: "origin_not_allowed", message: "Origem não autorizada." } }, origin);
   if (request.method !== "POST") return json(405, { error: { code: "method_not_allowed", message: "Use POST." } }, origin);
   const startedAt = Date.now();
+  // MVP7: exige autenticacao e resolve empresa via company_members
+  const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) return json(401, { error: { code: "auth_required", message: "Autenticação necessária." } }, origin);
+  let companyId: string; let userToken = token;
+  try {
+    const resolved = await resolveCompanyId(token);
+    companyId = resolved.companyId;
+    userToken = token;
+  } catch {
+    return json(403, { error: { code: "company_not_found", message: "Usuário sem empresa associada." } }, origin);
+  }
   try {
     const payload = await request.json(); const message = typeof payload?.message === "string" ? payload.message.trim() : "";
     if (!message || message.length > 2000) { await audit("request_error", false, Date.now() - startedAt, "invalid_message"); return json(400, { error: { code: "invalid_message", message: "Envie uma mensagem entre 1 e 2000 caracteres." } }, origin); }
@@ -103,7 +129,7 @@ Deno.serve(async (request) => {
     const providerBody = await provider.json(); const rawText = providerBody?.candidates?.[0]?.content?.parts?.[0]?.text;
     let parsed: unknown; try { parsed = JSON.parse(rawText); } catch { parsed = null; }
     if (!isInterpretation(parsed)) { await audit("invalid_ai_response", false, Date.now() - startedAt, "invalid_provider_json"); return json(502, { error: { code: "invalid_provider_response", message: "A IA não retornou o contrato de interpretação esperado." } }, origin); }
-    const analysis_id = await createAnalysisSession(message, providerBody, parsed);
+    const analysis_id = await createAnalysisSession(message, providerBody, parsed, userToken, companyId);
     const latencyMs = Date.now() - startedAt; await audit("success", true, latencyMs);
     return json(200, { analysis_id, contract_version: PROMPT_VERSION, model: MODEL, latency_ms: latencyMs, ...parsed }, origin);
   } catch (error) {

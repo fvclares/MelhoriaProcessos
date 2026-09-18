@@ -1,5 +1,9 @@
 import { analyzePerception, recordPerception } from "./api.js";
 
+const loginForm = document.querySelector("#login-form");
+const sessionInfo = document.querySelector("#session-info");
+const sessionStatus = document.querySelector("#session-status");
+const logoutBtn = document.querySelector("#logout");
 const form = document.querySelector("#perception-form");
 const input = document.querySelector("#perception");
 const button = document.querySelector("#submit-button");
@@ -10,8 +14,42 @@ const review = document.querySelector("#review");
 const types = ["reclamacao", "sugestao", "duvida", "elogio", "outro"];
 const categories = ["erro", "lentidao", "acesso", "usabilidade", "integracao", "processo", "informacao", "outro"];
 const labels = { tipo: "Tipo", processo: "Processo", subprocesso: "Subprocesso", sistema: "Sistema", categoria_problema: "Categoria do problema" };
+let accessToken = sessionStorage.getItem("auth-token");
 
+function setSessionUI() {
+  const logged = !!accessToken;
+  loginForm.hidden = logged;
+  sessionInfo.hidden = !logged;
+  form.hidden = !logged;
+  if (logged) sessionStatus.textContent = "Sessão ativa. Sua empresa será resolvida automaticamente.";
+}
+setSessionUI();
 input.addEventListener("input", () => { count.textContent = `${input.value.length} / 2000`; });
+loginForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const { supabaseUrl, supabaseAnonKey } = window.APP_CONFIG;
+  try {
+    const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: supabaseAnonKey },
+      body: JSON.stringify({ email: document.querySelector("#email").value, password: document.querySelector("#password").value }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.access_token) throw new Error(data.error_description || "Não foi possível entrar.");
+    accessToken = data.access_token;
+    sessionStorage.setItem("auth-token", accessToken);
+    sessionStorage.setItem("dictionary-admin-token", accessToken);
+    setSessionUI();
+  } catch (error) {
+    window.alert(error.message);
+  }
+});
+logoutBtn?.addEventListener("click", () => {
+  sessionStorage.removeItem("auth-token");
+  sessionStorage.removeItem("dictionary-admin-token");
+  accessToken = null;
+  setSessionUI();
+});
 
 function option(value, label, selected) {
   const item = document.createElement("option"); item.value = value; item.textContent = label; item.selected = selected; return item;
@@ -41,7 +79,7 @@ function renderReview(data) {
     const values = Object.fromEntries(new FormData(reviewForm));
     ["processo", "subprocesso", "sistema"].forEach((name) => { values[name] = values[name].trim() || null; });
     try {
-      const saved = await recordPerception(data.analysis_id, values);
+      const saved = await recordPerception(data.analysis_id, values, accessToken);
       status.textContent = `Percepção registrada com sucesso. Identificador: ${saved.perception_id}`;
       review.hidden = true; input.value = ""; count.textContent = "0 / 2000";
     } catch (error) { status.className = "status error"; status.textContent = error.message; confirm.disabled = false; }
@@ -50,10 +88,10 @@ function renderReview(data) {
 }
 
 form.addEventListener("submit", async (event) => {
-  event.preventDefault(); const message = input.value.trim(); if (!message) return;
+  event.preventDefault(); if (!accessToken) { status.className = "status error"; status.textContent = "Faça login para enviar percepções."; return; } const message = input.value.trim(); if (!message) return;
   button.disabled = true; result.hidden = true; review.hidden = true; status.className = "status"; status.textContent = "Interpretando a percepção…";
   try {
-    const data = await analyzePerception(message);
+    const data = await analyzePerception(message, accessToken);
     if (!data.single_issue) status.textContent = data.clarification_question || "Descreva apenas um problema por vez para continuar.";
     else {
       status.textContent = data.clarification_required ? `Complete ou corrija os campos abaixo. ${data.clarification_question}` : `Interpretação recebida em ${data.latency_ms} ms. Revise antes de registrar.`;

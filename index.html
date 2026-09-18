@@ -4,21 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Plataforma de Inteligência Operacional." />
-    <title>Inteligência Operacional — MVP 2</title>
+    <title>Inteligência Operacional — MVP 7</title>
     <link rel="stylesheet" href="css/app.css" />
   </head>
   <body>
     <main class="layout">
       <section class="panel" aria-labelledby="page-title">
-        <p class="eyebrow">MVP 2 · Confirmação e registro</p>
+        <p class="eyebrow">MVP 7 · SaaS multiempresa</p>
         <h1 id="page-title">Percepção operacional</h1>
-        <p class="intro">Envie uma percepção operacional, revise a interpretação e confirme os dados para criar um registro validado.</p>
-        <p><a href="admin.html">Acessar administração do dicionário</a></p>
-        <p><a href="analytics.html">Acessar indicadores operacionais</a></p>
-        <p><a href="evolution.html">Acessar sugestões de evolução</a></p>
-        <p><a href="semantic.html">Acessar inteligência semântica</a></p>
+        <p class="intro">Faça login para enviar percepções. Cada empresa vê apenas seus próprios dados (isolamento por RLS).</p>
+        <p><a href="admin.html">Acessar administração do dicionário</a> · <a href="analytics.html">Indicadores</a> · <a href="evolution.html">Evolução</a> · <a href="semantic.html">Semântica</a></p>
 
-        <form id="perception-form">
+        <form id="login-form" class="review-form">
+          <label>E-mail<input id="email" type="email" autocomplete="username" required /></label>
+          <label>Senha<input id="password" type="password" autocomplete="current-password" required /></label>
+          <button type="submit">Entrar</button>
+        </form>
+        <div id="session-info" hidden><p class="status" id="session-status"></p><button id="logout" type="button" class="secondary">Sair</button></div>
+
+        <form id="perception-form" hidden>
           <label for="perception">Sua percepção</label>
           <textarea id="perception" name="perception" maxlength="2000" required placeholder="Ex.: O GRAN trava quando tento incluir uma garantia."></textarea>
           <div class="form-footer">

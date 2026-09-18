@@ -25,8 +25,14 @@ async function invoke(functionName, payload, accessToken) {
   return body;
 }
 
-export function analyzePerception(message) { return invoke("analyze-perception", { message }); }
-export function recordPerception(analysisId, classification) { return invoke("record-perception", { analysis_id: analysisId, classification }); }
+export function analyzePerception(message, accessToken) {
+  if (!accessToken) throw new Error("Autenticação necessária. Faça login.");
+  return invoke("analyze-perception", { message }, accessToken);
+}
+export function recordPerception(analysisId, classification, accessToken) {
+  if (!accessToken) throw new Error("Autenticação necessária. Faça login.");
+  return invoke("record-perception", { analysis_id: analysisId, classification }, accessToken);
+}
 export function dictionaryAdmin(operation, accessToken, details = {}) { return invoke("dictionary-admin", { operation, ...details }, accessToken); }
 export function operationalAnalytics(accessToken) { return invoke("operational-analytics", {}, accessToken); }
 export function knowledgeEvolution(operation, accessToken, details = {}) { return invoke("knowledge-evolution", { operation, ...details }, accessToken); }

@@ -12,11 +12,17 @@ Deno.serve(async (request) => {
   if (!allowed || requestOrigin !== allowed) return reply(403, { error: { message: "Origem não autorizada." } }, requestOrigin);
   if (request.method !== "POST") return reply(405, { error: { message: "Use POST." } }, requestOrigin);
 
-  const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, ""); const url = Deno.env.get("SUPABASE_URL"); const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!token || !url || !key) return reply(401, { error: { message: "Autenticação administrativa necessária." } }, requestOrigin);
-  const client = createClient(url, key, { auth: { persistSession: false } });
-  const { data: userData, error: userError } = await client.auth.getUser(token); const admins = (Deno.env.get("ADMIN_USER_IDS") ?? "").split(",").map((id) => id.trim()).filter(Boolean);
+  const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, ""); const url = Deno.env.get("SUPABASE_URL"); const anonKey = Deno.env.get("SUPABASE_ANON_KEY"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!token || !url || !anonKey || !serviceKey) return reply(401, { error: { message: "Autenticação administrativa necessária." } }, requestOrigin);
+  const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const { data: userData, error: userError } = await serviceClient.auth.getUser(token); const admins = (Deno.env.get("ADMIN_USER_IDS") ?? "").split(",").map((id) => id.trim()).filter(Boolean);
   if (userError || !userData.user || !admins.includes(userData.user.id)) return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
+  const { data: membership } = await serviceClient.from("company_members").select("company_id").eq("user_id", userData.user.id).limit(1).maybeSingle();
+  if (!membership?.company_id) return reply(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
+  const companyId = membership.company_id;
+  const client = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
+  const { data: rlsCheck } = await client.from("companies").select("id").eq("id", companyId).maybeSingle();
+  if (!rlsCheck) return reply(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
 
   try {
     const payload = await request.json();
@@ -45,8 +51,8 @@ Deno.serve(async (request) => {
     if (!provider.ok) throw new Error(`gemini_${provider.status}`);
     const rawResponse = await provider.json(); let parsed: unknown; try { parsed = JSON.parse(rawResponse?.candidates?.[0]?.content?.parts?.[0]?.text); } catch { parsed = null; }
     const suggestions = Array.isArray((parsed as { suggestions?: unknown })?.suggestions) ? (parsed as { suggestions: unknown[] }).suggestions : [];
-    const accepted = [] as { suggestion_type: string; proposal: Record<string, unknown>; fingerprint: string; evidence: unknown[]; raw_response: unknown; prompt_version: string }[];
-    const add = (suggestion_type: string, proposal: Record<string, unknown>, evidence: unknown[]) => accepted.push({ suggestion_type, proposal, fingerprint: JSON.stringify({ suggestion_type, proposal }), evidence, raw_response: rawResponse, prompt_version: PROMPT_VERSION });
+    const accepted = [] as { suggestion_type: string; proposal: Record<string, unknown>; fingerprint: string; evidence: unknown[]; raw_response: unknown; prompt_version: string; company_id: string }[];
+    const add = (suggestion_type: string, proposal: Record<string, unknown>, evidence: unknown[]) => accepted.push({ suggestion_type, proposal, fingerprint: JSON.stringify({ suggestion_type, proposal, company_id: companyId }), evidence, raw_response: rawResponse, prompt_version: PROMPT_VERSION, company_id: companyId });
     for (const item of suggestions.slice(0, 12)) {
       if (!item || typeof item !== "object") continue; const s = item as Record<string, unknown>; const type = s.type; const rationale = typeof s.rationale === "string" ? s.rationale.slice(0, 500) : ""; const evidence = Array.isArray(s.evidence) ? s.evidence.filter((value) => typeof value === "string").slice(0, 10) : [];
       if (type === "discover" && isId(s.entity_id, validIds) && byId.get(s.entity_id)?.governance_status === "candidate") add(type, { entity_id: s.entity_id, rationale }, evidence);

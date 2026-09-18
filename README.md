@@ -1,14 +1,14 @@
 # Plataforma de Inteligência Operacional
 
-Este repositório está na fase **MVP 6 — Inteligência semântica**.
+Este repositório está na fase **MVP 7 — SaaS multiempresa (fundação com RLS)**.
 
 O fluxo implementado nesta fase é:
 
 ```text
-GitHub Pages → Supabase Edge Function → Gemini → revisão humana → registro auditável → dicionário governado → indicadores → sugestões assistidas → semântica
+GitHub Pages (login) → Supabase Edge Function (resolve company via company_members + RLS) → Gemini → revisão humana → registro auditável → dicionário governado → indicadores → sugestões assistidas → semântica (isolados por empresa)
 ```
 
-Não há multiempresa ou recursos SaaS nesta etapa. Similaridade e anomalias são sinais; a IA não aplica decisões próprias.
+Isolamento multiempresa efetivo via RLS (`is_company_member`); a empresa é resolvida exclusivamente a partir do `auth.uid()` em cada operação, nunca via frontend. Similaridade/anomalias permanecem sinais sem automação.
 
 ## Preparação local
 
@@ -21,10 +21,11 @@ Não há multiempresa ou recursos SaaS nesta etapa. Similaridade e anomalias sã
    ALLOWED_ORIGIN=<url exata do GitHub Pages>
    ```
 
-5. Publique `supabase/functions/analyze-perception`, `supabase/functions/record-perception`, `supabase/functions/dictionary-admin`, `supabase/functions/operational-analytics`, `supabase/functions/knowledge-evolution` e `supabase/functions/semantic-intelligence` como Edge Functions.
-6. Publique a raiz do repositório no GitHub Pages.
+5. Crie empresas em `companies` e associe usuários em `company_members` (role `admin`/`member`). Defina `ADMIN_USER_IDS` com os UUIDs dos admins (comma-separated).
+6. Publique `supabase/functions/analyze-perception`, `supabase/functions/record-perception`, `supabase/functions/dictionary-admin`, `supabase/functions/operational-analytics`, `supabase/functions/knowledge-evolution` e `supabase/functions/semantic-intelligence` como Edge Functions (todas com `company_id` via RLS).
+7. Publique a raiz do repositório no GitHub Pages.
 
-Os roteiros de validação estão em [docs/MVP_VALIDATION.md](docs/MVP_VALIDATION.md), [docs/MVP1_VALIDATION.md](docs/MVP1_VALIDATION.md), [docs/MVP2_VALIDATION.md](docs/MVP2_VALIDATION.md), [docs/MVP3_VALIDATION.md](docs/MVP3_VALIDATION.md), [docs/MVP4_VALIDATION.md](docs/MVP4_VALIDATION.md), [docs/MVP5_VALIDATION.md](docs/MVP5_VALIDATION.md) e [docs/MVP6_VALIDATION.md](docs/MVP6_VALIDATION.md).
+Os roteiros de validação estão em [docs/MVP_VALIDATION.md](docs/MVP_VALIDATION.md), [docs/MVP1_VALIDATION.md](docs/MVP1_VALIDATION.md), [docs/MVP2_VALIDATION.md](docs/MVP2_VALIDATION.md), [docs/MVP3_VALIDATION.md](docs/MVP3_VALIDATION.md), [docs/MVP4_VALIDATION.md](docs/MVP4_VALIDATION.md), [docs/MVP5_VALIDATION.md](docs/MVP5_VALIDATION.md), [docs/MVP6_VALIDATION.md](docs/MVP6_VALIDATION.md) e [docs/MVP7_VALIDATION.md](docs/MVP7_VALIDATION.md) (baseline em `docs/MVP7_BASELINE_RESULTS.md`).
 
 ## Segurança
 

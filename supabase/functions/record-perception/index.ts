@@ -35,6 +35,20 @@ Deno.serve(async (request) => {
   }
   if (!allowed || origin !== allowed) return reply(403, { error: { code: "origin_not_allowed", message: "Origem não autorizada." } }, origin);
   if (request.method !== "POST") return reply(405, { error: { code: "method_not_allowed", message: "Use POST." } }, origin);
+  // MVP7: exige autenticacao e resolve empresa via company_members
+  const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) return reply(401, { error: { code: "auth_required", message: "Autenticação necessária." } }, origin);
+  const url = Deno.env.get("SUPABASE_URL"); const anonKey = Deno.env.get("SUPABASE_ANON_KEY"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !anonKey || !serviceKey) return reply(500, { error: { code: "persistence_failed", message: "Não foi possível registrar a percepção." } }, origin);
+  const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
+  if (userError || !userData.user) return reply(401, { error: { code: "auth_required", message: "Autenticação necessária." } }, origin);
+  const { data: membership } = await serviceClient.from("company_members").select("company_id").eq("user_id", userData.user.id).limit(1).maybeSingle();
+  if (!membership?.company_id) return reply(403, { error: { code: "company_not_found", message: "Usuário sem empresa associada." } }, origin);
+  const userClient = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
+  // verifica RLS tambem via userClient
+  const { data: rlsCheck } = await userClient.from("companies").select("id").eq("id", membership.company_id).maybeSingle();
+  if (!rlsCheck) return reply(403, { error: { code: "company_not_found", message: "Usuário sem empresa associada." } }, origin);
   try {
     const payload = await request.json();
     if (typeof payload?.analysis_id !== "string" || !validClassification(payload?.classification)) {
@@ -48,10 +62,7 @@ Deno.serve(async (request) => {
       sistema: cleanText(classification.sistema),
       categoria_problema: classification.categoria_problema,
     };
-    const url = Deno.env.get("SUPABASE_URL"); const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!url || !key) throw new Error("persistence_not_configured");
-    const client = createClient(url, key, { auth: { persistSession: false } });
-    const { data, error } = await client.rpc("persist_validated_perception", { p_session_id: payload.analysis_id, p_classification: canonical });
+    const { data, error } = await userClient.rpc("persist_validated_perception", { p_session_id: payload.analysis_id, p_classification: canonical });
     if (error) {
       const code = error.message.includes("analysis_session_unavailable") ? "analysis_session_unavailable" : "persistence_failed";
       return reply(code === "analysis_session_unavailable" ? 409 : 500, { error: { code, message: code === "analysis_session_unavailable" ? "Esta análise expirou ou já foi confirmada. Faça uma nova interpretação." : "Não foi possível registrar a percepção." } }, origin);
