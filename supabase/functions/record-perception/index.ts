@@ -43,12 +43,11 @@ Deno.serve(async (request) => {
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
   if (userError || !userData.user) return reply(401, { error: { code: "auth_required", message: "Autenticação necessária." } }, origin);
-  const { data: membership } = await serviceClient.from("company_members").select("company_id").eq("user_id", userData.user.id).limit(1).maybeSingle();
-  if (!membership?.company_id) return reply(403, { error: { code: "company_not_found", message: "Usuário sem empresa associada." } }, origin);
+  const { data: companyId, error: companyError } = await serviceClient.rpc("resolve_active_company", { p_user_id: userData.user.id });
+  if (companyError || !companyId) return reply(403, { error: { code: "company_not_found", message: "Usuário sem empresa ativa. Selecione uma empresa." } }, origin);
   const userClient = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
-  // verifica RLS tambem via userClient
-  const { data: rlsCheck } = await userClient.from("companies").select("id").eq("id", membership.company_id).maybeSingle();
-  if (!rlsCheck) return reply(403, { error: { code: "company_not_found", message: "Usuário sem empresa associada." } }, origin);
+  const { data: rlsCheck } = await userClient.from("companies").select("id").eq("id", companyId).maybeSingle();
+  if (!rlsCheck) return reply(403, { error: { code: "company_not_found", message: "Usuário sem empresa ativa. Selecione uma empresa." } }, origin);
   try {
     const payload = await request.json();
     if (typeof payload?.analysis_id !== "string" || !validClassification(payload?.classification)) {

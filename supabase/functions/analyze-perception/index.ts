@@ -68,13 +68,11 @@ async function resolveCompanyId(token: string): Promise<{ companyId: string; use
   const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
   if (userError || !userData.user) throw new Error("auth_required");
   const userClient = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
-  // também valida via service para obter company (bypass RLS se necessario)
-  const { data: membership, error: memberError } = await serviceClient.from("company_members").select("company_id").eq("user_id", userData.user.id).limit(1).maybeSingle();
-  if (memberError || !membership?.company_id) throw new Error("company_not_found");
-  // verifica que o JWT realmente tem acesso via RLS (defesa em profundidade)
-  const { data: rlsCheck } = await userClient.from("companies").select("id").eq("id", membership.company_id).maybeSingle();
+  const { data: companyId, error: memberError } = await serviceClient.rpc("resolve_active_company", { p_user_id: userData.user.id });
+  if (memberError || !companyId) throw new Error("company_not_found");
+  const { data: rlsCheck } = await userClient.from("companies").select("id").eq("id", companyId).maybeSingle();
   if (!rlsCheck) throw new Error("company_not_found");
-  return { companyId: membership.company_id, userClient };
+  return { companyId: companyId as string, userClient };
 }
 async function createAnalysisSession(message: string, rawResponse: unknown, interpretation: Interpretation, token: string, companyId: string) {
   const url = Deno.env.get("SUPABASE_URL"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
