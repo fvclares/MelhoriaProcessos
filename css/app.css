@@ -46,5 +46,9 @@ th { color: #475569; }
 .bar-rail { grid-column: 1 / -1; height: 7px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
 .bar-fill { height: 100%; border-radius: inherit; background: #2563eb; }
 .coverage { margin: 18px 0 0; color: #64748b; font-size: .9rem; }
+.suggestions { display: grid; gap: 14px; }
+.suggestion { padding: 18px; border: 1px solid #dbe5f0; border-radius: 12px; background: #fff; }
+.suggestion h2 { margin: 0 0 8px; font-size: 1.05rem; text-transform: capitalize; }
+.suggestion pre { margin: 10px 0; }
 @media (max-width: 700px) { .analytics-grid { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .panel { padding: 24px; } }

@@ -29,3 +29,4 @@ export function analyzePerception(message) { return invoke("analyze-perception",
 export function recordPerception(analysisId, classification) { return invoke("record-perception", { analysis_id: analysisId, classification }); }
 export function dictionaryAdmin(operation, accessToken, details = {}) { return invoke("dictionary-admin", { operation, ...details }, accessToken); }
 export function operationalAnalytics(accessToken) { return invoke("operational-analytics", {}, accessToken); }
+export function knowledgeEvolution(operation, accessToken, details = {}) { return invoke("knowledge-evolution", { operation, ...details }, accessToken); }
