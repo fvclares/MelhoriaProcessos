@@ -50,5 +50,8 @@ th { color: #475569; }
 .suggestion { padding: 18px; border: 1px solid #dbe5f0; border-radius: 12px; background: #fff; }
 .suggestion h2 { margin: 0 0 8px; font-size: 1.05rem; text-transform: capitalize; }
 .suggestion pre { margin: 10px 0; }
+.semantic-search { display: flex; gap: 10px; margin: 18px 0; }
+.semantic-search input { flex: 1; min-width: 0; padding: 10px; border: 1px solid #b8c7db; border-radius: 8px; font: inherit; }
+.semantic-line { margin: 0; padding: 10px 0; border-bottom: 1px solid #e5eaf1; line-height: 1.45; }
 @media (max-width: 700px) { .analytics-grid { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .panel { padding: 24px; } }
