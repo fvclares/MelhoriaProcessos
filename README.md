@@ -21,7 +21,7 @@ Isolamento multiempresa efetivo via RLS (`is_company_member`); a empresa é reso
    ALLOWED_ORIGIN=<url exata do GitHub Pages>
    ```
 
-5. Crie empresas em `companies` e associe usuários em `company_members` (role `admin`/`member`). Defina `ADMIN_USER_IDS` com os UUIDs dos admins (comma-separated).
+5. Crie empresas em `companies` e associe usuários em `company_members`, usando o papel `admin` para a governança e `member` para uso operacional.
 6. Publique `supabase/functions/analyze-perception`, `supabase/functions/record-perception`, `supabase/functions/dictionary-admin`, `supabase/functions/operational-analytics`, `supabase/functions/knowledge-evolution` e `supabase/functions/semantic-intelligence` como Edge Functions (todas com `company_id` via RLS).
 7. Publique a raiz do repositório no GitHub Pages.
 

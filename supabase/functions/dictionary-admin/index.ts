@@ -22,11 +22,10 @@ Deno.serve(async (request) => {
   if (!bearer || !url || !anonKey || !serviceKey) return response(401, { error: { message: "Autenticação administrativa necessária." } }, requestOrigin);
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: userData, error: userError } = await serviceClient.auth.getUser(bearer);
-  const admins = (Deno.env.get("ADMIN_USER_IDS") ?? "").split(",").map((id) => id.trim()).filter(Boolean);
-  if (userError || !userData.user || !admins.includes(userData.user.id)) return response(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
+  if (userError || !userData.user) return response(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
   // MVP7: resolve empresa via company_members (nunca via frontend)
-  const { data: membership, error: membershipError } = await serviceClient.from("company_members").select("company_id").eq("user_id", userData.user.id).limit(1).maybeSingle();
-  if (membershipError || !membership?.company_id) return response(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
+  const { data: membership, error: membershipError } = await serviceClient.from("company_members").select("company_id, role").eq("user_id", userData.user.id).limit(1).maybeSingle();
+  if (membershipError || !membership?.company_id || membership.role !== "admin") return response(403, { error: { message: "Este usuário não possui acesso administrativo nesta empresa." } }, requestOrigin);
   const companyId = membership.company_id;
   const client = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${bearer}` } } });
   // verifica RLS tambem via userClient
@@ -78,7 +77,7 @@ Deno.serve(async (request) => {
       if (!targetId || targetId === entityId) return response(400, { error: { message: "Selecione outra entidade do mesmo tipo." } }, requestOrigin);
       const { data: target, error: targetError } = await client.from("entities").select("id, entity_type, governance_status, company_id").eq("id", targetId).single();
       if (targetError || !target || target.entity_type !== entity.entity_type || target.governance_status === "consolidated" || target.company_id !== companyId) return response(400, { error: { message: "A entidade destino deve existir, ter o mesmo tipo e estar ativa." } }, requestOrigin);
-      const { error: consolidationError } = await client.rpc("consolidate_entities", { p_source_id: entityId, p_target_id: targetId, p_actor_id: userData.user.id });
+      const { error: consolidationError } = await serviceClient.rpc("consolidate_entities", { p_source_id: entityId, p_target_id: targetId, p_actor_id: userData.user.id });
       if (consolidationError) throw consolidationError;
       return response(200, { status: "consolidated", target_entity_id: targetId }, requestOrigin);
     }

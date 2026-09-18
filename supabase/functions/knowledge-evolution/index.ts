@@ -15,10 +15,10 @@ Deno.serve(async (request) => {
   const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, ""); const url = Deno.env.get("SUPABASE_URL"); const anonKey = Deno.env.get("SUPABASE_ANON_KEY"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!token || !url || !anonKey || !serviceKey) return reply(401, { error: { message: "Autenticação administrativa necessária." } }, requestOrigin);
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
-  const { data: userData, error: userError } = await serviceClient.auth.getUser(token); const admins = (Deno.env.get("ADMIN_USER_IDS") ?? "").split(",").map((id) => id.trim()).filter(Boolean);
-  if (userError || !userData.user || !admins.includes(userData.user.id)) return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
-  const { data: membership } = await serviceClient.from("company_members").select("company_id").eq("user_id", userData.user.id).limit(1).maybeSingle();
-  if (!membership?.company_id) return reply(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
+  const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
+  if (userError || !userData.user) return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
+  const { data: membership } = await serviceClient.from("company_members").select("company_id, role").eq("user_id", userData.user.id).limit(1).maybeSingle();
+  if (!membership?.company_id || membership.role !== "admin") return reply(403, { error: { message: "Este usuário não possui acesso administrativo nesta empresa." } }, requestOrigin);
   const companyId = membership.company_id;
   const client = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
   const { data: rlsCheck } = await client.from("companies").select("id").eq("id", companyId).maybeSingle();
@@ -32,7 +32,7 @@ Deno.serve(async (request) => {
     }
     if (payload?.operation === "review") {
       if (typeof payload.suggestion_id !== "string" || typeof payload.approved !== "boolean") return reply(400, { error: { message: "Decisão inválida." } }, requestOrigin);
-      const { error } = await client.rpc("review_knowledge_suggestion", { p_suggestion_id: payload.suggestion_id, p_approved: payload.approved, p_actor_id: userData.user.id, p_note: typeof payload.note === "string" ? payload.note.slice(0, 500) : null });
+      const { error } = await serviceClient.rpc("review_knowledge_suggestion", { p_suggestion_id: payload.suggestion_id, p_approved: payload.approved, p_actor_id: userData.user.id, p_note: typeof payload.note === "string" ? payload.note.slice(0, 500) : null });
       if (error) return reply(409, { error: { message: "A sugestão não pôde ser aplicada ou já foi revisada." } }, requestOrigin);
       return reply(200, { status: payload.approved ? "approved" : "rejected" }, requestOrigin);
     }

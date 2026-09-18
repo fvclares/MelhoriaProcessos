@@ -18,10 +18,9 @@ Deno.serve(async (request) => {
   if (!token || !url || !anonKey || !serviceKey) return reply(401, { error: { message: "Autenticação administrativa necessária." } }, requestOrigin);
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
-  const admins = (Deno.env.get("ADMIN_USER_IDS") ?? "").split(",").map((id) => id.trim()).filter(Boolean);
-  if (userError || !userData.user || !admins.includes(userData.user.id)) return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
-  const { data: membership } = await serviceClient.from("company_members").select("company_id").eq("user_id", userData.user.id).limit(1).maybeSingle();
-  if (!membership?.company_id) return reply(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
+  if (userError || !userData.user) return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
+  const { data: membership } = await serviceClient.from("company_members").select("company_id, role").eq("user_id", userData.user.id).limit(1).maybeSingle();
+  if (!membership?.company_id || membership.role !== "admin") return reply(403, { error: { message: "Este usuário não possui acesso administrativo nesta empresa." } }, requestOrigin);
   const client = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
   const { data: rlsCheck } = await client.from("companies").select("id").eq("id", membership.company_id).maybeSingle();
   if (!rlsCheck) return reply(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
