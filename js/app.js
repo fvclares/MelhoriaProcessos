@@ -5,91 +5,120 @@ const loginForm = document.querySelector("#login-form");
 const sessionInfo = document.querySelector("#session-info");
 const sessionStatus = document.querySelector("#session-status");
 const logoutBtn = document.querySelector("#logout");
+const conversation = document.querySelector("#conversation");
 const form = document.querySelector("#perception-form");
 const input = document.querySelector("#perception");
 const button = document.querySelector("#submit-button");
 const count = document.querySelector("#character-count");
 const status = document.querySelector("#status");
-const result = document.querySelector("#result");
-const review = document.querySelector("#review");
 const types = ["reclamacao", "sugestao", "duvida", "elogio", "outro"];
 const categories = ["erro", "lentidao", "acesso", "usabilidade", "integracao", "processo", "informacao", "outro"];
-const labels = { tipo: "Tipo", processo: "Processo", subprocesso: "Subprocesso", sistema: "Sistema", categoria_problema: "Categoria do problema" };
-let accessToken = hasSession();
+const labels = { tipo: "Tipo", processo: "Processo", subprocesso: "Subprocesso", sistema: "Sistema", categoria_problema: "Natureza da situação" };
+const humanLabels = { reclamacao: "Reclamação", sugestao: "Sugestão", duvida: "Dúvida", elogio: "Elogio", outro: "Outro", erro: "Erro", lentidao: "Lentidão", acesso: "Acesso", usabilidade: "Usabilidade", integracao: "Integração", processo: "Processo", informacao: "Informação" };
+let authenticated = hasSession();
 
-async function setSessionUI() {
-  const logged = !!accessToken;
-  loginForm.hidden = logged;
-  sessionInfo.hidden = !logged;
-  form.hidden = !logged;
-  if (logged) {
-    sessionStatus.textContent = "Sessão ativa.";
-  }
+function setStatus(message, isError = false) {
+  status.textContent = message;
+  status.className = isError ? "status chat-status error" : "status chat-status";
 }
-setSessionUI();
-input.addEventListener("input", () => { count.textContent = `${input.value.length} / 2000`; });
-loginForm?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  try {
-    await signIn(document.querySelector("#email").value, document.querySelector("#password").value);
-    accessToken = true;
-    setSessionUI();
-  } catch (error) {
-    window.alert(error.message);
-  }
-});
-logoutBtn?.addEventListener("click", () => {
-  signOut(); accessToken = false;
-  setSessionUI();
-});
-
+function setSessionUI() {
+  loginForm.hidden = authenticated;
+  sessionInfo.hidden = !authenticated;
+  conversation.hidden = !authenticated;
+  form.hidden = !authenticated;
+  sessionStatus.textContent = authenticated ? "Você está conectado." : "";
+  if (authenticated) setStatus("Escreva como falaria com uma pessoa da equipe.");
+}
+function addMessage(author, text, extraClass = "") {
+  const message = document.createElement("article");
+  message.className = `chat-message ${author} ${extraClass}`.trim();
+  const speaker = document.createElement("p"); speaker.className = "chat-speaker"; speaker.textContent = author === "user" ? "Você" : "Assistente";
+  const bubble = document.createElement("p"); bubble.className = "chat-bubble"; bubble.textContent = text;
+  message.append(speaker, bubble); conversation.append(message);
+  message.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  return message;
+}
+function readable(value) { return value ? (humanLabels[value] || value) : "Não informado"; }
 function option(value, label, selected) {
   const item = document.createElement("option"); item.value = value; item.textContent = label; item.selected = selected; return item;
 }
 function fieldControl(name, value) {
-  const values = name === "tipo" ? types : name === "categoria_problema" ? categories : null;
-  if (values) {
+  const choices = name === "tipo" ? types : name === "categoria_problema" ? categories : null;
+  if (choices) {
     const select = document.createElement("select"); select.name = name; select.required = true;
-    select.append(option("", "Selecione…", !value)); values.forEach((item) => select.append(option(item, item, item === value)));
+    select.append(option("", "Selecione…", !value)); choices.forEach((item) => select.append(option(item, readable(item), item === value)));
     return select;
   }
   const control = document.createElement("input"); control.name = name; control.type = "text"; control.maxLength = 160; control.value = value ?? ""; return control;
 }
-function renderReview(data) {
-  review.hidden = false; review.replaceChildren();
-  const title = document.createElement("h2"); title.textContent = "Revise antes de registrar"; review.append(title);
-  const interpretation = document.createElement("p"); interpretation.textContent = data.interpretation; review.append(interpretation);
-  if (data.clarification_required) { const note = document.createElement("p"); note.className = "clarification"; note.textContent = data.clarification_question; review.append(note); }
-  const reviewForm = document.createElement("form"); reviewForm.className = "review-form";
-  Object.keys(labels).forEach((name) => {
-    const label = document.createElement("label"); label.htmlFor = `review-${name}`; label.textContent = labels[name];
-    const control = fieldControl(name, data.fields[name]?.value); control.id = `review-${name}`; label.append(control); reviewForm.append(label);
+function normalizedValues(data) {
+  return Object.fromEntries(Object.keys(labels).map((name) => [name, data.fields[name]?.value ?? (name === "tipo" || name === "categoria_problema" ? "" : null)]));
+}
+function register(data, values, card) {
+  const actions = card.querySelector(".chat-actions");
+  card.querySelectorAll("button").forEach((item) => { item.disabled = true; });
+  setStatus("Registrando o que você confirmou…");
+  ["processo", "subprocesso", "sistema"].forEach((name) => { values[name] = typeof values[name] === "string" ? values[name].trim() || null : null; });
+  recordPerception(data.analysis_id, values).then(() => {
+    addMessage("assistant", "Pronto. Registrei sua percepção para apoiar a melhoria do processo.");
+    setStatus("Você pode compartilhar outra situação quando quiser."); input.focus();
+  }).catch((error) => {
+    setStatus(error.message, true);
+    card.querySelectorAll("button").forEach((item) => { item.disabled = false; });
   });
-  const confirm = document.createElement("button"); confirm.type = "submit"; confirm.textContent = "Confirmar e registrar"; reviewForm.append(confirm);
-  reviewForm.addEventListener("submit", async (event) => {
-    event.preventDefault(); confirm.disabled = true; status.className = "status"; status.textContent = "Registrando a percepção validada…";
-    const values = Object.fromEntries(new FormData(reviewForm));
-    ["processo", "subprocesso", "sistema"].forEach((name) => { values[name] = values[name].trim() || null; });
-    try {
-      const saved = await recordPerception(data.analysis_id, values);
-      status.textContent = `Percepção registrada com sucesso. Identificador: ${saved.perception_id}`;
-      review.hidden = true; input.value = ""; count.textContent = "0 / 2000";
-    } catch (error) { status.className = "status error"; status.textContent = error.message; confirm.disabled = false; }
+}
+function renderInterpretation(data) {
+  addMessage("assistant", data.interpretation);
+  if (data.clarification_required && data.clarification_question) addMessage("assistant", data.clarification_question, "clarification-message");
+  const card = document.createElement("article"); card.className = "chat-review";
+  const title = document.createElement("p"); title.className = "review-question"; title.textContent = "Posso registrar assim?";
+  const facts = document.createElement("dl"); facts.className = "interpretation-facts";
+  Object.entries(labels).forEach(([name, label]) => {
+    const term = document.createElement("dt"); term.textContent = label;
+    const value = document.createElement("dd"); value.textContent = readable(data.fields[name]?.value);
+    facts.append(term, value);
   });
-  review.append(reviewForm);
+  const actions = document.createElement("div"); actions.className = "chat-actions";
+  const confirm = document.createElement("button"); confirm.type = "button"; confirm.textContent = "Sim, pode registrar";
+  const adjust = document.createElement("button"); adjust.type = "button"; adjust.className = "secondary"; adjust.textContent = "Ajustar informações";
+  actions.append(confirm, adjust); card.append(title, facts, actions); conversation.append(card);
+  const values = normalizedValues(data);
+  confirm.addEventListener("click", () => register(data, { ...values }, card));
+  adjust.addEventListener("click", () => {
+    if (card.querySelector("form")) return;
+    const editor = document.createElement("form"); editor.className = "conversation-editor";
+    const hint = document.createElement("p"); hint.textContent = "Altere apenas o que não representa bem a situação."; editor.append(hint);
+    Object.entries(labels).forEach(([name, label]) => {
+      const field = document.createElement("label"); field.textContent = label; field.append(fieldControl(name, values[name])); editor.append(field);
+    });
+    const save = document.createElement("button"); save.type = "submit"; save.textContent = "Confirmar ajustes"; editor.append(save);
+    editor.addEventListener("submit", (event) => { event.preventDefault(); register(data, Object.fromEntries(new FormData(editor)), card); });
+    actions.hidden = true; card.append(editor);
+  });
+  if (!values.tipo || !values.categoria_problema) {
+    title.textContent = "Preciso completar dois detalhes antes de registrar.";
+    confirm.hidden = true; adjust.textContent = "Completar informações"; adjust.click();
+  }
+  card.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
+setSessionUI();
+input.addEventListener("input", () => { count.textContent = `${input.value.length} / 2000`; });
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  try { await signIn(document.querySelector("#email").value, document.querySelector("#password").value); authenticated = true; setSessionUI(); input.focus(); }
+  catch (error) { window.alert(error.message); }
+});
+logoutBtn.addEventListener("click", () => { signOut(); authenticated = false; setSessionUI(); });
 form.addEventListener("submit", async (event) => {
-  event.preventDefault(); if (!accessToken) { status.className = "status error"; status.textContent = "Faça login para enviar percepções."; return; } const message = input.value.trim(); if (!message) return;
-  button.disabled = true; result.hidden = true; review.hidden = true; status.className = "status"; status.textContent = "Interpretando a percepção…";
+  event.preventDefault();
+  const message = input.value.trim(); if (!message) return;
+  button.disabled = true; input.disabled = true; addMessage("user", message); input.value = ""; count.textContent = "0 / 2000"; setStatus("Estou organizando o que você contou…");
   try {
     const data = await analyzePerception(message);
-    if (!data.single_issue) status.textContent = data.clarification_question || "Descreva apenas um problema por vez para continuar.";
-    else {
-      status.textContent = data.clarification_required ? `Complete ou corrija os campos abaixo. ${data.clarification_question}` : `Interpretação recebida em ${data.latency_ms} ms. Revise antes de registrar.`;
-      renderReview(data);
-    }
-    result.textContent = JSON.stringify(data, null, 2); result.hidden = false;
-  } catch (error) { status.className = "status error"; status.textContent = error.message; }
-  finally { button.disabled = false; }
+    if (!data.single_issue) addMessage("assistant", data.clarification_question || "Vamos registrar uma situação principal por vez. Qual delas você prefere tratar primeiro?", "clarification-message");
+    else renderInterpretation(data);
+    setStatus("Revise a interpretação antes de registrar.");
+  } catch (error) { addMessage("assistant", "Não consegui interpretar essa mensagem agora. Você pode tentar novamente?", "error-message"); setStatus(error.message, true); }
+  finally { button.disabled = false; input.disabled = false; input.focus(); }
 });

@@ -11,8 +11,8 @@
     <main class="layout">
       <section class="panel" aria-labelledby="page-title">
         <p class="eyebrow">Inteligência para uma instituição</p>
-        <h1 id="page-title">Percepção operacional</h1>
-        <p class="intro">Faça login para enviar percepções e apoiar a melhoria contínua da instituição.</p>
+        <h1 id="page-title">Vamos entender o que aconteceu?</h1>
+        <p class="intro">Conte uma situação, dificuldade ou ideia. A interpretação é sempre revisada por você antes de ser registrada.</p>
         <p><a href="admin.html">Acessar administração do dicionário</a> · <a href="analytics.html">Indicadores</a> · <a href="evolution.html">Evolução</a> · <a href="semantic.html">Semântica</a></p>
 
         <form id="login-form" class="review-form">
@@ -22,20 +22,19 @@
         </form>
         <div id="session-info" hidden><p class="status" id="session-status"></p><button id="logout" type="button" class="secondary">Sair</button></div>
 
-        <form id="perception-form" hidden>
-          <label for="perception">Sua percepção</label>
+        <section id="conversation" class="conversation" hidden aria-label="Conversa sobre percepção operacional" aria-live="polite">
+          <article class="chat-message assistant"><p class="chat-speaker">Assistente</p><p class="chat-bubble">Olá. O que você gostaria de compartilhar sobre sua rotina de trabalho?</p></article>
+        </section>
+
+        <form id="perception-form" class="chat-composer" hidden>
+          <label class="sr-only" for="perception">Sua mensagem</label>
           <textarea id="perception" name="perception" maxlength="2000" required placeholder="Ex.: O GRAN trava quando tento incluir uma garantia."></textarea>
           <div class="form-footer">
             <span id="character-count" aria-live="polite">0 / 2000</span>
-            <button id="submit-button" type="submit">Interpretar</button>
+            <button id="submit-button" type="submit">Enviar</button>
           </div>
         </form>
-
-        <section class="response" aria-live="polite" aria-label="Resultado do teste">
-          <p id="status" class="status">Aguardando um teste.</p>
-          <pre id="result" hidden></pre>
-          <section id="review" class="review" hidden></section>
-        </section>
+        <p id="status" class="status chat-status" aria-live="polite">Faça login para começar.</p>
       </section>
     </main>
 
