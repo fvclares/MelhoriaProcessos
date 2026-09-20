@@ -26,6 +26,12 @@ function validClassification(value: unknown): value is Classification {
   const processo = cleanText(data.processo); const subprocesso = cleanText(data.subprocesso); const sistema = cleanText(data.sistema);
   return typeof data.tipo === "string" && TYPES.includes(data.tipo) && typeof data.categoria_problema === "string" && CATEGORIES.includes(data.categoria_problema) && processo !== undefined && subprocesso !== undefined && sistema !== undefined;
 }
+async function consumeRateLimit(client: ReturnType<typeof createClient>, userId: string) {
+  const { data, error } = await client.rpc("consume_edge_rate_limit", { p_scope: "record-perception", p_user_id: userId, p_limit: 20, p_window_seconds: 60 });
+  if (error) throw error;
+  const result = Array.isArray(data) ? data[0] : data;
+  return result?.allowed ? 0 : Number(result?.retry_after_seconds ?? 60);
+}
 
 Deno.serve(async (request) => {
   const origin = normalizeOrigin(request.headers.get("Origin")); const allowed = normalizeOrigin(Deno.env.get("ALLOWED_ORIGIN") ?? null);
@@ -44,9 +50,14 @@ Deno.serve(async (request) => {
   if (userError || !userData.user) return reply(401, { error: { code: "auth_required", message: "Autenticação necessária." } }, origin);
   const { data: membership } = await serviceClient.from("user_roles").select("user_id").eq("user_id", userData.user.id).maybeSingle();
   if (!membership) return reply(403, { error: { code: "institution_access_required", message: "Usuário sem acesso à instituição." } }, origin);
+  try {
+    const retryAfter = await consumeRateLimit(serviceClient, userData.user.id);
+    if (retryAfter) return reply(429, { error: { code: "rate_limited", message: "Muitos registros em pouco tempo. Tente novamente em instantes.", retry_after_seconds: retryAfter } }, origin);
+  } catch { return reply(503, { error: { code: "rate_limit_unavailable", message: "Controle temporariamente indisponível. Tente novamente." } }, origin); }
   const userClient = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
   try {
-    const payload = await request.json();
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") return reply(400, { error: { code: "invalid_json", message: "Envie um JSON válido." } }, origin);
     if (typeof payload?.analysis_id !== "string" || !validClassification(payload?.classification)) {
       return reply(400, { error: { code: "invalid_confirmation", message: "Revise os campos obrigatórios antes de confirmar." } }, origin);
     }

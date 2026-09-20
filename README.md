@@ -25,7 +25,17 @@ O acesso é controlado por RLS e pelo papel institucional (`admin` ou `member`) 
 6. Publique `supabase/functions/analyze-perception`, `supabase/functions/record-perception`, `supabase/functions/dictionary-admin`, `supabase/functions/operational-analytics`, `supabase/functions/knowledge-evolution` e `supabase/functions/semantic-intelligence` como Edge Functions.
 7. Publique a raiz do repositório no GitHub Pages.
 
-Os roteiros de validação estão em [docs/MVP_VALIDATION.md](docs/MVP_VALIDATION.md), [docs/MVP1_VALIDATION.md](docs/MVP1_VALIDATION.md), [docs/MVP2_VALIDATION.md](docs/MVP2_VALIDATION.md), [docs/MVP3_VALIDATION.md](docs/MVP3_VALIDATION.md), [docs/MVP4_VALIDATION.md](docs/MVP4_VALIDATION.md), [docs/MVP5_VALIDATION.md](docs/MVP5_VALIDATION.md), [docs/MVP6_VALIDATION.md](docs/MVP6_VALIDATION.md) e [docs/MVP7_VALIDATION.md](docs/MVP7_VALIDATION.md) (baseline em `docs/MVP7_BASELINE_RESULTS.md`).
+## Configuração pública e sessão
+
+- A URL e a `supabaseAnonKey` em `js/config.js` são identificadores públicos exigidos por um frontend estático; elas não concedem acesso administrativo e não devem ser substituídas por chave de serviço.
+- A proteção efetiva está em RLS, papéis em `user_roles`, validação do JWT nas Edge Functions, CORS restritivo e limitação de chamadas no backend.
+- O navegador guarda uma sessão temporária com `access_token` e `refresh_token`. O módulo `js/auth.js` renova o token antes de ele expirar e elimina as chaves usadas pelas versões anteriores ao sair.
+
+Os roteiros de validação estão em [docs/MVP_VALIDATION.md](docs/MVP_VALIDATION.md), [docs/MVP1_VALIDATION.md](docs/MVP1_VALIDATION.md), [docs/MVP2_VALIDATION.md](docs/MVP2_VALIDATION.md), [docs/MVP3_VALIDATION.md](docs/MVP3_VALIDATION.md), [docs/MVP4_VALIDATION.md](docs/MVP4_VALIDATION.md), [docs/MVP5_VALIDATION.md](docs/MVP5_VALIDATION.md), [docs/MVP6_VALIDATION.md](docs/MVP6_VALIDATION.md), [docs/PHASE1_AUTH_VALIDATION.md](docs/PHASE1_AUTH_VALIDATION.md) e [docs/PHASE2_RESILIENCE_VALIDATION.md](docs/PHASE2_RESILIENCE_VALIDATION.md). Os documentos do MVP 7 permanecem como registro histórico do experimento multiempresa, substituído pela instituição única.
+
+## Verificação local
+
+Com Node.js 20 ou superior, execute `npm run check`. O comando verifica os módulos do navegador, os contratos mínimos das Edge Functions e os testes automatizados. O workflow `.github/workflows/quality.yml` executa a mesma verificação em cada push e pull request.
 
 ## Segurança
 

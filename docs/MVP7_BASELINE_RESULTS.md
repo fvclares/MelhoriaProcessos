@@ -1,5 +1,7 @@
 # MVP 7 - resultado da validacao (SaaS multiempresa com RLS)
 
+> Registro histórico. O modelo multiempresa foi removido pela migration `20260918188000_single_institution.sql`; os dados e a função `tenant-context` descritos abaixo não existem no estado atual.
+
 - Data: 2026-09-18. Migrations `20260918180000_mvp7_saas_foundation.sql` (empresas, membros, unidades, company_id, RLS select) + `20260918181000_mvp7_rls_enforcement.sql` (politicas INSERT/UPDATE/DELETE tenant-aware + funcoes `register_entity_evidence`, `persist_validated_perception`, `consolidate_entities`, `review_knowledge_suggestion` e funcoes semanticas com `is_company_member`) + `20260918182000_fix_mvp7_classifications.sql` (company_id em classifications/ai_interpretations/corrections e politicas) aplicadas via `supabase db push`.
 - Edge Functions adaptadas para resolver empresa via `company_members` a partir do usuario autenticado (nunca via frontend): `analyze-perception`, `record-perception`, `dictionary-admin`, `operational-analytics`, `knowledge-evolution`, `semantic-intelligence` (`supabase/functions/*/index.ts`). Todas exigem `Authorization: Bearer <user JWT>` e criam `userClient` com `anonKey + Bearer` para RLS (`is_company_member`).
 - `company_members` populada: `Organizacao inicial` (229f60d8) com `mvp3-admin@example.com` (admin) e `mvp3-user@example.com` (member); `Empresa B` (13066c6f) com `mvp7-b@example.com` (admin). `ADMIN_USER_IDS` atualizado para `1727caa2...,d5f2284b...` (comma, sem espaco).

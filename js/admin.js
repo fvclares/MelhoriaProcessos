@@ -1,11 +1,12 @@
 import { dictionaryAdmin } from "./api.js";
+import { hasSession, signIn, signOut } from "./auth.js";
 
 const loginForm = document.querySelector("#login-form");
 const dictionary = document.querySelector("#dictionary");
 const status = document.querySelector("#admin-status");
 const list = document.querySelector("#entity-list");
 const evidence = document.querySelector("#evidence");
-let accessToken = sessionStorage.getItem("dictionary-admin-token");
+let accessToken = hasSession();
 let entities = [];
 
 
@@ -17,7 +18,7 @@ async function load() {
   if (!accessToken) return;
   setStatus("Carregando conceitos…");
   try {
-    const data = await dictionaryAdmin("list", accessToken); entities = data.entities || []; list.replaceChildren();
+    const data = await dictionaryAdmin("list"); entities = data.entities || []; list.replaceChildren();
     entities.forEach((entity) => {
       const row = document.createElement("tr");
       [entity.canonical_name, entity.entity_type, entity.governance_status, String(entity.evidence_count)].forEach((value) => { const cell = document.createElement("td"); cell.textContent = value; row.append(cell); });
@@ -35,7 +36,7 @@ async function action(event) {
   let operation = target.dataset.action; const details = { entity_id: entity.id };
   if (operation === "detail") {
     try {
-      const data = await dictionaryAdmin("detail", accessToken, details); evidence.hidden = false; evidence.replaceChildren();
+      const data = await dictionaryAdmin("detail", details); evidence.hidden = false; evidence.replaceChildren();
       const title = document.createElement("h2"); title.textContent = `Origem: ${data.entity.canonical_name}`; evidence.append(title);
       const aliases = document.createElement("p"); aliases.textContent = `Sinônimos: ${(data.aliases || []).map((item) => item.alias).join(", ") || "nenhum"}`; evidence.append(aliases);
       (data.evidence || []).forEach((item) => { const itemEl = document.createElement("p"); itemEl.textContent = `${item.evidence_state}: ${item.perceptions?.original_text || item.extracted_value}`; evidence.append(itemEl); });
@@ -48,18 +49,15 @@ async function action(event) {
     const name = window.prompt(`Consolidar em qual conceito? ${choices.map((item) => item.canonical_name).join(", ")}`); const targetEntity = choices.find((item) => item.canonical_name.toLowerCase() === name?.trim().toLowerCase());
     if (!targetEntity) { setStatus("Selecione um conceito do mesmo tipo pelo nome exato.", true); return; } details.target_entity_id = targetEntity.id;
   }
-  try { await dictionaryAdmin(operation, accessToken, details); evidence.hidden = true; await load(); } catch (error) { setStatus(error.message, true); }
+  try { await dictionaryAdmin(operation, details); evidence.hidden = true; await load(); } catch (error) { setStatus(error.message, true); }
 }
 
 loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault(); const { supabaseUrl, supabaseAnonKey } = config();
-  try {
-    const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, { method: "POST", headers: { "Content-Type": "application/json", apikey: supabaseAnonKey }, body: JSON.stringify({ email: document.querySelector("#email").value, password: document.querySelector("#password").value }) });
-    const data = await response.json(); if (!response.ok || !data.access_token) throw new Error(data.error_description || "Não foi possível entrar.");
-    accessToken = data.access_token; sessionStorage.setItem("dictionary-admin-token", accessToken); sessionStorage.setItem("auth-token", accessToken); loginForm.hidden = true; dictionary.hidden = false; await load();
-  } catch (error) { window.alert(error.message); }
+  event.preventDefault();
+  try { await signIn(document.querySelector("#email").value, document.querySelector("#password").value); accessToken = true; loginForm.hidden = true; dictionary.hidden = false; await load(); }
+  catch (error) { window.alert(error.message); }
 });
 document.querySelector("#refresh").addEventListener("click", load);
-document.querySelector("#logout").addEventListener("click", () => { sessionStorage.removeItem("dictionary-admin-token"); accessToken = null; dictionary.hidden = true; loginForm.hidden = false; evidence.hidden = true; });
+document.querySelector("#logout").addEventListener("click", () => { signOut(); accessToken = false; dictionary.hidden = true; loginForm.hidden = false; evidence.hidden = true; });
 list.addEventListener("click", action);
 if (accessToken) { loginForm.hidden = true; dictionary.hidden = false; load(); }

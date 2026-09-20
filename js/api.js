@@ -1,3 +1,5 @@
+import { accessToken as currentAccessToken } from "./auth.js";
+
 function configuration() {
   const config = window.APP_CONFIG;
   if (!config?.supabaseUrl || !config?.supabaseAnonKey || config.supabaseUrl.includes("SEU-PROJETO")) {
@@ -6,8 +8,9 @@ function configuration() {
   return config;
 }
 
-async function invoke(functionName, payload, accessToken) {
+async function invoke(functionName, payload) {
   const { supabaseUrl, supabaseAnonKey } = configuration();
+  const accessToken = await currentAccessToken();
   const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/${functionName}`, {
     method: "POST",
     headers: {
@@ -25,15 +28,13 @@ async function invoke(functionName, payload, accessToken) {
   return body;
 }
 
-export function analyzePerception(message, accessToken) {
-  if (!accessToken) throw new Error("Autenticação necessária. Faça login.");
-  return invoke("analyze-perception", { message }, accessToken);
+export function analyzePerception(message) {
+  return invoke("analyze-perception", { message });
 }
-export function recordPerception(analysisId, classification, accessToken) {
-  if (!accessToken) throw new Error("Autenticação necessária. Faça login.");
-  return invoke("record-perception", { analysis_id: analysisId, classification }, accessToken);
+export function recordPerception(analysisId, classification) {
+  return invoke("record-perception", { analysis_id: analysisId, classification });
 }
-export function dictionaryAdmin(operation, accessToken, details = {}) { return invoke("dictionary-admin", { operation, ...details }, accessToken); }
-export function operationalAnalytics(accessToken) { return invoke("operational-analytics", {}, accessToken); }
-export function knowledgeEvolution(operation, accessToken, details = {}) { return invoke("knowledge-evolution", { operation, ...details }, accessToken); }
-export function semanticIntelligence(operation, accessToken, details = {}) { return invoke("semantic-intelligence", { operation, ...details }, accessToken); }
+export function dictionaryAdmin(operation, details = {}) { return invoke("dictionary-admin", { operation, ...details }); }
+export function operationalAnalytics() { return invoke("operational-analytics", {}); }
+export function knowledgeEvolution(operation, details = {}) { return invoke("knowledge-evolution", { operation, ...details }); }
+export function semanticIntelligence(operation, details = {}) { return invoke("semantic-intelligence", { operation, ...details }); }

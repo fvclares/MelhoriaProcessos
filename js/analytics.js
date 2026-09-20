@@ -1,9 +1,10 @@
 import { operationalAnalytics } from "./api.js";
+import { hasSession, signIn, signOut } from "./auth.js";
 
 const loginForm = document.querySelector("#login-form");
 const dashboard = document.querySelector("#dashboard");
 const status = document.querySelector("#analytics-status");
-let accessToken = sessionStorage.getItem("dictionary-admin-token");
+let accessToken = hasSession();
 
 
 function setStatus(message, error = false) { status.textContent = message; status.className = error ? "status error" : "status"; }
@@ -28,11 +29,11 @@ function render(data) {
   bars(document.querySelector("#evolution"), daily, (row) => row.name);
   document.querySelector("#unit-coverage").textContent = data.unit_coverage.message;
 }
-async function load() { if (!accessToken) return; setStatus("Calculando indicadores…"); try { const data = await operationalAnalytics(accessToken); render(data); setStatus("Indicadores atualizados com dados validados."); } catch (error) { setStatus(error.message, true); } }
+async function load() { if (!accessToken) return; setStatus("Calculando indicadores…"); try { const data = await operationalAnalytics(); render(data); setStatus("Indicadores atualizados com dados validados."); } catch (error) { setStatus(error.message, true); } }
 loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault(); const { supabaseUrl, supabaseAnonKey } = config();
-  try { const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, { method: "POST", headers: { "Content-Type": "application/json", apikey: supabaseAnonKey }, body: JSON.stringify({ email: document.querySelector("#email").value, password: document.querySelector("#password").value }) }); const data = await response.json(); if (!response.ok || !data.access_token) throw new Error(data.error_description || "Não foi possível entrar."); accessToken = data.access_token; sessionStorage.setItem("dictionary-admin-token", accessToken); sessionStorage.setItem("auth-token", accessToken); loginForm.hidden = true; dashboard.hidden = false; await load(); } catch (error) { window.alert(error.message); }
+  event.preventDefault();
+  try { await signIn(document.querySelector("#email").value, document.querySelector("#password").value); accessToken = true; loginForm.hidden = true; dashboard.hidden = false; await load(); } catch (error) { window.alert(error.message); }
 });
 document.querySelector("#refresh").addEventListener("click", load);
-document.querySelector("#logout").addEventListener("click", () => { sessionStorage.removeItem("dictionary-admin-token"); accessToken = null; dashboard.hidden = true; loginForm.hidden = false; });
+document.querySelector("#logout").addEventListener("click", () => { signOut(); accessToken = false; dashboard.hidden = true; loginForm.hidden = false; });
 if (accessToken) { loginForm.hidden = true; dashboard.hidden = false; load(); }

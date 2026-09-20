@@ -1137,7 +1137,9 @@ Mesmo que as palavras sejam diferentes, o sistema poderá reconhecer a relação
 
 ---
 
-# 28. MVP 7 — Produto SaaS
+# 28. MVP 7 — Produto SaaS (histórico substituído)
+
+> Decisão posterior: a ferramenta opera como instituição única. A migration `20260918188000_single_institution.sql` removeu empresas, seleção de empresa e isolamento multiempresa; autenticação e papéis institucionais foram preservados em `user_roles`.
 
 Somente após validação do núcleo.
 

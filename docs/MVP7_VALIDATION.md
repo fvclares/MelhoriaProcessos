@@ -1,4 +1,6 @@
-# MVP 7 — Produto SaaS
+# MVP 7 — Produto SaaS (histórico substituído)
+
+> Este roteiro registra o experimento multiempresa validado em 2026-09-18. Ele foi substituído pela migration `20260918188000_single_institution.sql`; não o utilize para publicar o estado atual da aplicação.
 
 Esta migration cria empresas, membros, unidades e associa os dados existentes à organização inicial. Antes de publicar, crie ao menos um usuário no Supabase Auth e insira-o em `company_members` como `admin` da empresa inicial.
 

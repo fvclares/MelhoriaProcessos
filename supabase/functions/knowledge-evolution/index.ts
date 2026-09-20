@@ -5,6 +5,11 @@ const corsHeaders = { "Access-Control-Allow-Headers": "authorization, x-client-i
 function origin(value: string | null) { return value?.trim().replace(/\/$/, "") ?? null; }
 function reply(status: number, body: unknown, requestOrigin: string | null) { const allowed = origin(Deno.env.get("ALLOWED_ORIGIN") ?? null); return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Access-Control-Allow-Origin": allowed && allowed === origin(requestOrigin) ? allowed : (allowed ?? "") } }); }
 function isId(value: unknown, valid: Set<string>) { return typeof value === "string" && valid.has(value); }
+async function consumeRateLimit(client: ReturnType<typeof createClient>, userId: string) {
+  const { data, error } = await client.rpc("consume_edge_rate_limit", { p_scope: "knowledge-evolution", p_user_id: userId, p_limit: 5, p_window_seconds: 60 });
+  if (error) throw error; const result = Array.isArray(data) ? data[0] : data;
+  return result?.allowed ? 0 : Number(result?.retry_after_seconds ?? 60);
+}
 
 Deno.serve(async (request) => {
   const requestOrigin = origin(request.headers.get("Origin")); const allowed = origin(Deno.env.get("ALLOWED_ORIGIN") ?? null);
@@ -19,10 +24,13 @@ Deno.serve(async (request) => {
   if (userError || !userData.user) return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
   const { data: adminCheck } = await serviceClient.from("user_roles").select("role").eq("user_id", userData.user.id).maybeSingle();
   if (!adminCheck || adminCheck.role !== "admin") return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
+  try { const retryAfter = await consumeRateLimit(serviceClient, userData.user.id); if (retryAfter) return reply(429, { error: { code: "rate_limited", message: "Muitas operações em pouco tempo. Tente novamente em instantes.", retry_after_seconds: retryAfter } }, requestOrigin); }
+  catch { return reply(503, { error: { code: "rate_limit_unavailable", message: "Controle temporariamente indisponível. Tente novamente." } }, requestOrigin); }
   const client = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
 
   try {
-    const payload = await request.json();
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") return reply(400, { error: { code: "invalid_json", message: "Envie um JSON válido." } }, requestOrigin);
     if (payload?.operation === "list") {
       const { data, error } = await client.from("knowledge_suggestions").select("id, suggestion_type, proposal, evidence, status, created_at, reviewed_at, review_note").order("created_at", { ascending: false }).limit(100);
       if (error) throw error; return reply(200, { suggestions: data }, requestOrigin);

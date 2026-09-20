@@ -61,7 +61,7 @@ async function audit(outcome: string, responseValid: boolean, latencyMs: number,
   const { error } = await client.from("mvp0_call_audits").insert({ model: MODEL, latency_ms: latencyMs, outcome, response_valid: responseValid, error_code: errorCode ?? null });
   if (error) console.error("MVP audit failed", error.code);
 }
-async function authorizeUser(token: string): Promise<void> {
+async function authorizeUser(token: string): Promise<string> {
   const url = Deno.env.get("SUPABASE_URL"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!url || !serviceKey) throw new Error("persistence_not_configured");
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
@@ -69,6 +69,16 @@ async function authorizeUser(token: string): Promise<void> {
   if (userError || !userData.user) throw new Error("auth_required");
   const { data: membership } = await serviceClient.from("user_roles").select("user_id").eq("user_id", userData.user.id).maybeSingle();
   if (!membership) throw new Error("institution_access_required");
+  return userData.user.id;
+}
+async function consumeRateLimit(userId: string) {
+  const url = Deno.env.get("SUPABASE_URL"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !serviceKey) throw new Error("rate_limit_unavailable");
+  const client = createClient(url, serviceKey, { auth: { persistSession: false } });
+  const { data, error } = await client.rpc("consume_edge_rate_limit", { p_scope: "analyze-perception", p_user_id: userId, p_limit: 10, p_window_seconds: 60 });
+  if (error) throw new Error("rate_limit_unavailable");
+  const result = Array.isArray(data) ? data[0] : data;
+  return result?.allowed ? 0 : Number(result?.retry_after_seconds ?? 60);
 }
 async function createAnalysisSession(message: string, rawResponse: unknown, interpretation: Interpretation) {
   const url = Deno.env.get("SUPABASE_URL"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -95,13 +105,22 @@ Deno.serve(async (request) => {
   const startedAt = Date.now();
   const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return json(401, { error: { code: "auth_required", message: "Autenticação necessária." } }, origin);
+  let userId: string;
   try {
-    await authorizeUser(token);
+    userId = await authorizeUser(token);
   } catch {
     return json(403, { error: { code: "institution_access_required", message: "Usuário sem acesso à instituição." } }, origin);
   }
   try {
-    const payload = await request.json(); const message = typeof payload?.message === "string" ? payload.message.trim() : "";
+    const retryAfter = await consumeRateLimit(userId);
+    if (retryAfter) return json(429, { error: { code: "rate_limited", message: "Muitas interpretações em pouco tempo. Tente novamente em instantes.", retry_after_seconds: retryAfter } }, origin);
+  } catch {
+    return json(503, { error: { code: "rate_limit_unavailable", message: "Controle temporariamente indisponível. Tente novamente." } }, origin);
+  }
+  try {
+    const payload = await request.json().catch(() => null);
+    if (!payload || typeof payload !== "object") return json(400, { error: { code: "invalid_json", message: "Envie um JSON válido." } }, origin);
+    const message = typeof payload.message === "string" ? payload.message.trim() : "";
     if (!message || message.length > 2000) { await audit("request_error", false, Date.now() - startedAt, "invalid_message"); return json(400, { error: { code: "invalid_message", message: "Envie uma mensagem entre 1 e 2000 caracteres." } }, origin); }
     const apiKey = Deno.env.get("GEMINI_API_KEY"); if (!apiKey) throw new Error("gemini_not_configured");
     const provider = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: promptFor(message) }] }], generationConfig: { responseMimeType: "application/json", responseSchema, temperature: 0 } }) });
