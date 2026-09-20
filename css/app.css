@@ -31,6 +31,7 @@ button:disabled { cursor: wait; opacity: .65; }
 .chat-status { margin-top: 12px; color: #64748b; font-size: .9rem; }
 .chat-review { max-width: 88%; padding: 18px; border: 1px solid #bfdbfe; border-radius: 14px; background: #f8fbff; }
 .review-question { margin: 0 0 14px; font-weight: 750; }
+.review-summary { margin: 0 0 16px; line-height: 1.5; color: #334155; }
 .interpretation-facts { display: grid; grid-template-columns: minmax(120px, .7fr) 1.3fr; gap: 8px 16px; margin: 0; font-size: .92rem; }
 .interpretation-facts dt { color: #64748b; }
 .interpretation-facts dd { margin: 0; font-weight: 650; }

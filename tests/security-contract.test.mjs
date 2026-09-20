@@ -22,3 +22,10 @@ test("modelo Gemini padrão é explicitamente configurável", async () => {
   assert.match(source, /Deno\.env\.get\("GEMINI_MODEL"\)/);
   assert.match(source, /gemini-3\.5-flash-lite/);
 });
+
+test("analista conduz a conversa antes de liberar validação", async () => {
+  const source = await read("supabase/functions/analyze-perception/index.ts");
+  assert.match(source, /ready_for_validation/);
+  assert.match(source, /5W2H/);
+  assert.match(source, /const analysisId = parsed\.ready_for_validation/);
+});

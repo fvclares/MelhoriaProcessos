@@ -28,8 +28,8 @@ async function invoke(functionName, payload) {
   return body;
 }
 
-export function analyzePerception(message) {
-  return invoke("analyze-perception", { message });
+export function analyzeConversation(messages) {
+  return invoke("analyze-perception", { messages });
 }
 export function recordPerception(analysisId, classification) {
   return invoke("record-perception", { analysis_id: analysisId, classification });

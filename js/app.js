@@ -1,4 +1,4 @@
-import { analyzePerception, recordPerception } from "./api.js";
+import { analyzeConversation, recordPerception } from "./api.js";
 import { hasSession, signIn, signOut } from "./auth.js";
 
 const loginForm = document.querySelector("#login-form");
@@ -16,6 +16,7 @@ const categories = ["erro", "lentidao", "acesso", "usabilidade", "integracao", "
 const labels = { tipo: "Tipo", processo: "Processo", subprocesso: "Subprocesso", sistema: "Sistema", categoria_problema: "Natureza da situação" };
 const humanLabels = { reclamacao: "Reclamação", sugestao: "Sugestão", duvida: "Dúvida", elogio: "Elogio", outro: "Outro", erro: "Erro", lentidao: "Lentidão", acesso: "Acesso", usabilidade: "Usabilidade", integracao: "Integração", processo: "Processo", informacao: "Informação" };
 let authenticated = hasSession();
+let history = [];
 
 function setStatus(message, isError = false) {
   status.textContent = message;
@@ -51,9 +52,6 @@ function fieldControl(name, value) {
   }
   const control = document.createElement("input"); control.name = name; control.type = "text"; control.maxLength = 160; control.value = value ?? ""; return control;
 }
-function normalizedValues(data) {
-  return Object.fromEntries(Object.keys(labels).map((name) => [name, data.fields[name]?.value ?? (name === "tipo" || name === "categoria_problema" ? "" : null)]));
-}
 function register(data, values, card) {
   const actions = card.querySelector(".chat-actions");
   card.querySelectorAll("button").forEach((item) => { item.disabled = true; });
@@ -61,28 +59,27 @@ function register(data, values, card) {
   ["processo", "subprocesso", "sistema"].forEach((name) => { values[name] = typeof values[name] === "string" ? values[name].trim() || null : null; });
   recordPerception(data.analysis_id, values).then(() => {
     addMessage("assistant", "Pronto. Registrei sua percepção para apoiar a melhoria do processo.");
-    setStatus("Você pode compartilhar outra situação quando quiser."); input.focus();
+    history = []; setStatus("Você pode compartilhar outra situação quando quiser."); input.focus();
   }).catch((error) => {
     setStatus(error.message, true);
     card.querySelectorAll("button").forEach((item) => { item.disabled = false; });
   });
 }
 function renderInterpretation(data) {
-  addMessage("assistant", data.interpretation);
-  if (data.clarification_required && data.clarification_question) addMessage("assistant", data.clarification_question, "clarification-message");
   const card = document.createElement("article"); card.className = "chat-review";
-  const title = document.createElement("p"); title.className = "review-question"; title.textContent = "Posso registrar assim?";
+  const title = document.createElement("p"); title.className = "review-question"; title.textContent = "Confira o resumo antes de registrar.";
+  const summary = document.createElement("p"); summary.className = "review-summary"; summary.textContent = data.summary;
   const facts = document.createElement("dl"); facts.className = "interpretation-facts";
   Object.entries(labels).forEach(([name, label]) => {
     const term = document.createElement("dt"); term.textContent = label;
-    const value = document.createElement("dd"); value.textContent = readable(data.fields[name]?.value);
+    const value = document.createElement("dd"); value.textContent = readable(data.draft[name]?.value);
     facts.append(term, value);
   });
   const actions = document.createElement("div"); actions.className = "chat-actions";
   const confirm = document.createElement("button"); confirm.type = "button"; confirm.textContent = "Sim, pode registrar";
   const adjust = document.createElement("button"); adjust.type = "button"; adjust.className = "secondary"; adjust.textContent = "Ajustar informações";
-  actions.append(confirm, adjust); card.append(title, facts, actions); conversation.append(card);
-  const values = normalizedValues(data);
+  actions.append(confirm, adjust); card.append(title, summary, facts, actions); conversation.append(card);
+  const values = Object.fromEntries(Object.keys(labels).map((name) => [name, data.draft[name]?.value ?? (name === "tipo" || name === "categoria_problema" ? "" : null)]));
   confirm.addEventListener("click", () => register(data, { ...values }, card));
   adjust.addEventListener("click", () => {
     if (card.querySelector("form")) return;
@@ -115,10 +112,14 @@ form.addEventListener("submit", async (event) => {
   const message = input.value.trim(); if (!message) return;
   button.disabled = true; input.disabled = true; addMessage("user", message); input.value = ""; count.textContent = "0 / 2000"; setStatus("Estou organizando o que você contou…");
   try {
-    const data = await analyzePerception(message);
-    if (!data.single_issue) addMessage("assistant", data.clarification_question || "Vamos registrar uma situação principal por vez. Qual delas você prefere tratar primeiro?", "clarification-message");
-    else renderInterpretation(data);
-    setStatus("Revise a interpretação antes de registrar.");
+    const userChars = history.filter((item) => item.role === "user").reduce((total, item) => total + item.text.length, 0) + message.length;
+    if (userChars > 2000) throw new Error("Esta conversa já reuniu muitos detalhes. Registre ou inicie uma nova situação.");
+    history.push({ role: "user", text: message });
+    const data = await analyzeConversation(history);
+    addMessage("assistant", data.assistant_message, data.ready_for_validation ? "validation-message" : "clarification-message");
+    history.push({ role: "assistant", text: data.assistant_message });
+    if (data.ready_for_validation) { renderInterpretation(data); setStatus("Confira o resumo antes de registrar."); }
+    else setStatus("Responda à pergunta do assistente para continuar.");
   } catch (error) { addMessage("assistant", "Não consegui interpretar essa mensagem agora. Você pode tentar novamente?", "error-message"); setStatus(error.message, true); }
   finally { button.disabled = false; input.disabled = false; input.focus(); }
 });
