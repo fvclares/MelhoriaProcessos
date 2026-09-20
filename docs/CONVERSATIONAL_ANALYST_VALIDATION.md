@@ -16,6 +16,9 @@
 5. Responda: `É muito difícil localizar um veículo quando o cliente informa poucos dados.`
 6. Somente quando houver compreensão suficiente, a IA deve apresentar uma síntese e liberar a revisão com **Sim, pode registrar** ou **Ajustar informações**.
 7. Confirme o registro e valide o retorno de sucesso.
+8. Após a confirmação, valide que o assistente pergunta se há outra percepção a compartilhar ou se a pessoa prefere encerrar.
+9. Selecione **Compartilhar outra**: o campo de mensagem deve permanecer disponível e receber o foco.
+10. Selecione **Encerrar conversa** em uma nova execução: o campo de mensagem deve ser ocultado, mantendo a sessão autenticada e exibindo a despedida do assistente.
 
 ## Casos de borda
 

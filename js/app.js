@@ -59,11 +59,20 @@ function register(data, values, card) {
   ["processo", "subprocesso", "sistema"].forEach((name) => { values[name] = typeof values[name] === "string" ? values[name].trim() || null : null; });
   recordPerception(data.analysis_id, values).then(() => {
     addMessage("assistant", "Pronto. Registrei sua percepção para apoiar a melhoria do processo.");
-    history = []; setStatus("Você pode compartilhar outra situação quando quiser."); input.focus();
+    history = []; offerNextStep();
   }).catch((error) => {
     setStatus(error.message, true);
     card.querySelectorAll("button").forEach((item) => { item.disabled = false; });
   });
+}
+function offerNextStep() {
+  addMessage("assistant", "Há mais alguma percepção que você gostaria de compartilhar ou prefere encerrar por aqui?");
+  const actions = document.createElement("div"); actions.className = "chat-actions conversation-choice";
+  const continueButton = document.createElement("button"); continueButton.type = "button"; continueButton.textContent = "Compartilhar outra";
+  const endButton = document.createElement("button"); endButton.type = "button"; endButton.className = "secondary"; endButton.textContent = "Encerrar conversa";
+  continueButton.addEventListener("click", () => { actions.remove(); setStatus("Certo. O que mais você gostaria de compartilhar?"); input.focus(); });
+  endButton.addEventListener("click", () => { actions.remove(); form.hidden = true; addMessage("assistant", "Tudo bem. Quando precisar, é só iniciar uma nova conversa nesta página."); setStatus("Conversa encerrada."); });
+  actions.append(continueButton, endButton); conversation.append(actions); setStatus("Escolha se deseja continuar ou encerrar a conversa.");
 }
 function renderInterpretation(data) {
   const card = document.createElement("article"); card.className = "chat-review";
