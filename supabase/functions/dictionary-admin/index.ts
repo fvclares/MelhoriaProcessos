@@ -23,14 +23,9 @@ Deno.serve(async (request) => {
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: userData, error: userError } = await serviceClient.auth.getUser(bearer);
   if (userError || !userData.user) return response(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
-  const { data: companyId, error: companyError } = await serviceClient.rpc("resolve_active_company", { p_user_id: userData.user.id });
-  if (companyError || !companyId) return response(403, { error: { message: "Selecione uma empresa ativa. Use o seletor de empresa." } }, requestOrigin);
-  const { data: adminCheck } = await serviceClient.from("company_members").select("role").eq("user_id", userData.user.id).eq("company_id", companyId).maybeSingle();
-  if (!adminCheck || adminCheck.role !== "admin") return response(403, { error: { message: "Este usuário não possui acesso administrativo nesta empresa." } }, requestOrigin);
+  const { data: adminCheck } = await serviceClient.from("user_roles").select("role").eq("user_id", userData.user.id).maybeSingle();
+  if (!adminCheck || adminCheck.role !== "admin") return response(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
   const client = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${bearer}` } } });
-  // verifica RLS tambem via userClient
-  const { data: rlsCheck } = await client.from("companies").select("id").eq("id", companyId).maybeSingle();
-  if (!rlsCheck) return response(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
 
   try {
     const payload = await request.json(); const operation = payload?.operation;
@@ -42,9 +37,8 @@ Deno.serve(async (request) => {
 
     const entityId = typeof payload?.entity_id === "string" ? payload.entity_id : null;
     if (!entityId) return response(400, { error: { message: "Entidade inválida." } }, requestOrigin);
-    const { data: entity, error: entityError } = await client.from("entities").select("id, entity_type, canonical_name, governance_status, company_id").eq("id", entityId).single();
+    const { data: entity, error: entityError } = await client.from("entities").select("id, entity_type, canonical_name, governance_status").eq("id", entityId).single();
     if (entityError || !entity) return response(404, { error: { message: "Entidade não encontrada." } }, requestOrigin);
-    if (entity.company_id !== companyId) return response(404, { error: { message: "Entidade não encontrada." } }, requestOrigin);
 
     if (operation === "detail") {
       const [{ data: aliases, error: aliasError }, { data: evidence, error: evidenceError }] = await Promise.all([
@@ -66,7 +60,7 @@ Deno.serve(async (request) => {
 
     if (operation === "add_alias") {
       const alias = text(payload?.alias); if (!alias) return response(400, { error: { message: "Sinônimo inválido." } }, requestOrigin);
-      const { error } = await client.from("entity_aliases").insert({ entity_id: entityId, entity_type: entity.entity_type, alias, normalized_alias: normalized(alias), company_id: companyId });
+      const { error } = await client.from("entity_aliases").insert({ entity_id: entityId, entity_type: entity.entity_type, alias, normalized_alias: normalized(alias) });
       if (error) return response(409, { error: { message: "Este sinônimo já existe ou conflita com outra entidade." } }, requestOrigin);
       await serviceClient.from("entity_governance_events").insert({ entity_id: entityId, action: "alias_added", actor_id: userData.user.id, details: { alias } });
       return response(201, { status: "alias_added" }, requestOrigin);
@@ -75,8 +69,8 @@ Deno.serve(async (request) => {
     if (operation === "consolidate") {
       const targetId = typeof payload?.target_entity_id === "string" ? payload.target_entity_id : null;
       if (!targetId || targetId === entityId) return response(400, { error: { message: "Selecione outra entidade do mesmo tipo." } }, requestOrigin);
-      const { data: target, error: targetError } = await client.from("entities").select("id, entity_type, governance_status, company_id").eq("id", targetId).single();
-      if (targetError || !target || target.entity_type !== entity.entity_type || target.governance_status === "consolidated" || target.company_id !== companyId) return response(400, { error: { message: "A entidade destino deve existir, ter o mesmo tipo e estar ativa." } }, requestOrigin);
+      const { data: target, error: targetError } = await client.from("entities").select("id, entity_type, governance_status").eq("id", targetId).single();
+      if (targetError || !target || target.entity_type !== entity.entity_type || target.governance_status === "consolidated") return response(400, { error: { message: "A entidade destino deve existir, ter o mesmo tipo e estar ativa." } }, requestOrigin);
       const { error: consolidationError } = await serviceClient.rpc("consolidate_entities", { p_source_id: entityId, p_target_id: targetId, p_actor_id: userData.user.id });
       if (consolidationError) throw consolidationError;
       return response(200, { status: "consolidated", target_entity_id: targetId }, requestOrigin);

@@ -35,7 +35,6 @@ Deno.serve(async (request) => {
   }
   if (!allowed || origin !== allowed) return reply(403, { error: { code: "origin_not_allowed", message: "Origem não autorizada." } }, origin);
   if (request.method !== "POST") return reply(405, { error: { code: "method_not_allowed", message: "Use POST." } }, origin);
-  // MVP7: exige autenticacao e resolve empresa via company_members
   const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) return reply(401, { error: { code: "auth_required", message: "Autenticação necessária." } }, origin);
   const url = Deno.env.get("SUPABASE_URL"); const anonKey = Deno.env.get("SUPABASE_ANON_KEY"); const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -43,11 +42,9 @@ Deno.serve(async (request) => {
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
   if (userError || !userData.user) return reply(401, { error: { code: "auth_required", message: "Autenticação necessária." } }, origin);
-  const { data: companyId, error: companyError } = await serviceClient.rpc("resolve_active_company", { p_user_id: userData.user.id });
-  if (companyError || !companyId) return reply(403, { error: { code: "company_not_found", message: "Usuário sem empresa ativa. Selecione uma empresa." } }, origin);
+  const { data: membership } = await serviceClient.from("user_roles").select("user_id").eq("user_id", userData.user.id).maybeSingle();
+  if (!membership) return reply(403, { error: { code: "institution_access_required", message: "Usuário sem acesso à instituição." } }, origin);
   const userClient = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
-  const { data: rlsCheck } = await userClient.from("companies").select("id").eq("id", companyId).maybeSingle();
-  if (!rlsCheck) return reply(403, { error: { code: "company_not_found", message: "Usuário sem empresa ativa. Selecione uma empresa." } }, origin);
   try {
     const payload = await request.json();
     if (typeof payload?.analysis_id !== "string" || !validClassification(payload?.classification)) {

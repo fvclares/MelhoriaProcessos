@@ -19,13 +19,9 @@ Deno.serve(async (request) => {
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
   if (userError || !userData.user) return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
-  const { data: companyId, error: companyError } = await serviceClient.rpc("resolve_active_company", { p_user_id: userData.user.id });
-  if (companyError || !companyId) return reply(403, { error: { message: "Selecione uma empresa ativa. Use o seletor de empresa." } }, requestOrigin);
-  const { data: adminCheck } = await serviceClient.from("company_members").select("role").eq("user_id", userData.user.id).eq("company_id", companyId).maybeSingle();
-  if (!adminCheck || adminCheck.role !== "admin") return reply(403, { error: { message: "Este usuário não possui acesso administrativo nesta empresa." } }, requestOrigin);
+  const { data: adminCheck } = await serviceClient.from("user_roles").select("role").eq("user_id", userData.user.id).maybeSingle();
+  if (!adminCheck || adminCheck.role !== "admin") return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
   const client = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
-  const { data: rlsCheck } = await client.from("companies").select("id").eq("id", companyId).maybeSingle();
-  if (!rlsCheck) return reply(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
 
   try {
     const [summaryResult, dailyResult] = await Promise.all([

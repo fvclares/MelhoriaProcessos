@@ -28,13 +28,9 @@ Deno.serve(async (request) => {
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
   if (userError || !userData.user) return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
-  const { data: companyId, error: companyError } = await serviceClient.rpc("resolve_active_company", { p_user_id: userData.user.id });
-  if (companyError || !companyId) return reply(403, { error: { message: "Selecione uma empresa ativa. Use o seletor de empresa." } }, requestOrigin);
-  const { data: adminCheck } = await serviceClient.from("company_members").select("role").eq("user_id", userData.user.id).eq("company_id", companyId).maybeSingle();
-  if (!adminCheck || adminCheck.role !== "admin") return reply(403, { error: { message: "Este usuário não possui acesso administrativo nesta empresa." } }, requestOrigin);
+  const { data: adminCheck } = await serviceClient.from("user_roles").select("role").eq("user_id", userData.user.id).maybeSingle();
+  if (!adminCheck || adminCheck.role !== "admin") return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
   const client = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
-  const { data: rlsCheck } = await client.from("companies").select("id").eq("id", companyId).maybeSingle();
-  if (!rlsCheck) return reply(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
 
   try {
     const payload = await request.json(); const operation = payload?.operation; const apiKey = Deno.env.get("GEMINI_API_KEY"); const model = Deno.env.get("GEMINI_EMBEDDING_MODEL") ?? "gemini-embedding-001";
@@ -54,7 +50,7 @@ Deno.serve(async (request) => {
     if (operation === "backfill") {
       const { data: pending, error } = await client.rpc("unembedded_perceptions", { p_limit: 20 }); if (error) throw error;
       const rows = [];
-      for (const perception of pending ?? []) { const embedding = await embed(perception.original_text, apiKey, model); rows.push({ perception_id: perception.perception_id, embedding, embedding_model: model, source_text: perception.original_text, company_id: companyId }); }
+      for (const perception of pending ?? []) { const embedding = await embed(perception.original_text, apiKey, model); rows.push({ perception_id: perception.perception_id, embedding, embedding_model: model, source_text: perception.original_text }); }
       if (rows.length) { const { error: insertError } = await client.from("perception_embeddings").upsert(rows, { onConflict: "perception_id" }); if (insertError) throw insertError; }
       return reply(200, { embedded: rows.length, remaining_batch_available: (pending ?? []).length === 20 }, requestOrigin);
     }

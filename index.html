@@ -4,15 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Plataforma de Inteligência Operacional." />
-    <title>Inteligência Operacional — MVP 7</title>
+    <title>Inteligência Operacional</title>
     <link rel="stylesheet" href="css/app.css" />
   </head>
   <body>
     <main class="layout">
       <section class="panel" aria-labelledby="page-title">
-        <p class="eyebrow">MVP 7 · SaaS multiempresa</p>
+        <p class="eyebrow">Inteligência para uma instituição</p>
         <h1 id="page-title">Percepção operacional</h1>
-        <p class="intro">Faça login para enviar percepções. Cada empresa vê apenas seus próprios dados (isolamento por RLS).</p>
+        <p class="intro">Faça login para enviar percepções e apoiar a melhoria contínua da instituição.</p>
         <p><a href="admin.html">Acessar administração do dicionário</a> · <a href="analytics.html">Indicadores</a> · <a href="evolution.html">Evolução</a> · <a href="semantic.html">Semântica</a></p>
 
         <form id="login-form" class="review-form">
@@ -20,7 +20,7 @@
           <label>Senha<input id="password" type="password" autocomplete="current-password" required /></label>
           <button type="submit">Entrar</button>
         </form>
-        <div id="session-info" hidden><p class="status" id="session-status"></p><div id="tenant-selector" class="tenant-selector"></div><button id="logout" type="button" class="secondary">Sair</button></div>
+        <div id="session-info" hidden><p class="status" id="session-status"></p><button id="logout" type="button" class="secondary">Sair</button></div>
 
         <form id="perception-form" hidden>
           <label for="perception">Sua percepção</label>

@@ -1,11 +1,9 @@
 import { analyzePerception, recordPerception } from "./api.js";
-import { renderTenantSelector } from "./tenant.js";
 
 const loginForm = document.querySelector("#login-form");
 const sessionInfo = document.querySelector("#session-info");
 const sessionStatus = document.querySelector("#session-status");
 const logoutBtn = document.querySelector("#logout");
-const tenantContainer = document.querySelector("#tenant-selector");
 const form = document.querySelector("#perception-form");
 const input = document.querySelector("#perception");
 const button = document.querySelector("#submit-button");
@@ -25,7 +23,6 @@ async function setSessionUI() {
   form.hidden = !logged;
   if (logged) {
     sessionStatus.textContent = "Sessão ativa.";
-    if (tenantContainer) await renderTenantSelector(tenantContainer, accessToken, () => {});
   }
 }
 setSessionUI();

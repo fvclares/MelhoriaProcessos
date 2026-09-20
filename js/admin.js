@@ -1,18 +1,13 @@
 import { dictionaryAdmin } from "./api.js";
-import { renderTenantSelector } from "./tenant.js";
 
 const loginForm = document.querySelector("#login-form");
 const dictionary = document.querySelector("#dictionary");
 const status = document.querySelector("#admin-status");
 const list = document.querySelector("#entity-list");
 const evidence = document.querySelector("#evidence");
-const tenantContainer = document.querySelector("#tenant-selector");
 let accessToken = sessionStorage.getItem("dictionary-admin-token");
 let entities = [];
 
-async function refreshTenant() {
-  if (tenantContainer && accessToken) await renderTenantSelector(tenantContainer, accessToken, () => load());
-}
 
 function config() { return window.APP_CONFIG; }
 function setStatus(message, isError = false) { status.textContent = message; status.className = isError ? "status error" : "status"; }
@@ -61,10 +56,10 @@ loginForm.addEventListener("submit", async (event) => {
   try {
     const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, { method: "POST", headers: { "Content-Type": "application/json", apikey: supabaseAnonKey }, body: JSON.stringify({ email: document.querySelector("#email").value, password: document.querySelector("#password").value }) });
     const data = await response.json(); if (!response.ok || !data.access_token) throw new Error(data.error_description || "Não foi possível entrar.");
-    accessToken = data.access_token; sessionStorage.setItem("dictionary-admin-token", accessToken); sessionStorage.setItem("auth-token", accessToken); loginForm.hidden = true; dictionary.hidden = false; await refreshTenant(); await load();
+    accessToken = data.access_token; sessionStorage.setItem("dictionary-admin-token", accessToken); sessionStorage.setItem("auth-token", accessToken); loginForm.hidden = true; dictionary.hidden = false; await load();
   } catch (error) { window.alert(error.message); }
 });
 document.querySelector("#refresh").addEventListener("click", load);
 document.querySelector("#logout").addEventListener("click", () => { sessionStorage.removeItem("dictionary-admin-token"); accessToken = null; dictionary.hidden = true; loginForm.hidden = false; evidence.hidden = true; });
 list.addEventListener("click", action);
-if (accessToken) { loginForm.hidden = true; dictionary.hidden = false; refreshTenant(); load(); }
+if (accessToken) { loginForm.hidden = true; dictionary.hidden = false; load(); }

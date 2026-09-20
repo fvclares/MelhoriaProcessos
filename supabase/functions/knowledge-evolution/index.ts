@@ -17,13 +17,9 @@ Deno.serve(async (request) => {
   const serviceClient = createClient(url, serviceKey, { auth: { persistSession: false } });
   const { data: userData, error: userError } = await serviceClient.auth.getUser(token);
   if (userError || !userData.user) return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
-  const { data: companyId, error: companyError } = await serviceClient.rpc("resolve_active_company", { p_user_id: userData.user.id });
-  if (companyError || !companyId) return reply(403, { error: { message: "Selecione uma empresa ativa. Use o seletor de empresa." } }, requestOrigin);
-  const { data: adminCheck } = await serviceClient.from("company_members").select("role").eq("user_id", userData.user.id).eq("company_id", companyId).maybeSingle();
-  if (!adminCheck || adminCheck.role !== "admin") return reply(403, { error: { message: "Este usuário não possui acesso administrativo nesta empresa." } }, requestOrigin);
+  const { data: adminCheck } = await serviceClient.from("user_roles").select("role").eq("user_id", userData.user.id).maybeSingle();
+  if (!adminCheck || adminCheck.role !== "admin") return reply(403, { error: { message: "Este usuário não possui acesso administrativo." } }, requestOrigin);
   const client = createClient(url, anonKey, { auth: { persistSession: false }, global: { headers: { Authorization: `Bearer ${token}` } } });
-  const { data: rlsCheck } = await client.from("companies").select("id").eq("id", companyId).maybeSingle();
-  if (!rlsCheck) return reply(403, { error: { message: "Usuário sem empresa associada." } }, requestOrigin);
 
   try {
     const payload = await request.json();
@@ -52,8 +48,8 @@ Deno.serve(async (request) => {
     if (!provider.ok) throw new Error(`gemini_${provider.status}`);
     const rawResponse = await provider.json(); let parsed: unknown; try { parsed = JSON.parse(rawResponse?.candidates?.[0]?.content?.parts?.[0]?.text); } catch { parsed = null; }
     const suggestions = Array.isArray((parsed as { suggestions?: unknown })?.suggestions) ? (parsed as { suggestions: unknown[] }).suggestions : [];
-    const accepted = [] as { suggestion_type: string; proposal: Record<string, unknown>; fingerprint: string; evidence: unknown[]; raw_response: unknown; prompt_version: string; company_id: string }[];
-    const add = (suggestion_type: string, proposal: Record<string, unknown>, evidence: unknown[]) => accepted.push({ suggestion_type, proposal, fingerprint: JSON.stringify({ suggestion_type, proposal, company_id: companyId }), evidence, raw_response: rawResponse, prompt_version: PROMPT_VERSION, company_id: companyId });
+    const accepted = [] as { suggestion_type: string; proposal: Record<string, unknown>; fingerprint: string; evidence: unknown[]; raw_response: unknown; prompt_version: string }[];
+    const add = (suggestion_type: string, proposal: Record<string, unknown>, evidence: unknown[]) => accepted.push({ suggestion_type, proposal, fingerprint: JSON.stringify({ suggestion_type, proposal }), evidence, raw_response: rawResponse, prompt_version: PROMPT_VERSION });
     for (const item of suggestions.slice(0, 12)) {
       if (!item || typeof item !== "object") continue; const s = item as Record<string, unknown>; const type = s.type; const rationale = typeof s.rationale === "string" ? s.rationale.slice(0, 500) : ""; const evidence = Array.isArray(s.evidence) ? s.evidence.filter((value) => typeof value === "string").slice(0, 10) : [];
       if (type === "discover" && isId(s.entity_id, validIds) && byId.get(s.entity_id)?.governance_status === "candidate") add(type, { entity_id: s.entity_id, rationale }, evidence);

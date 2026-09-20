@@ -37,4 +37,3 @@ export function dictionaryAdmin(operation, accessToken, details = {}) { return i
 export function operationalAnalytics(accessToken) { return invoke("operational-analytics", {}, accessToken); }
 export function knowledgeEvolution(operation, accessToken, details = {}) { return invoke("knowledge-evolution", { operation, ...details }, accessToken); }
 export function semanticIntelligence(operation, accessToken, details = {}) { return invoke("semantic-intelligence", { operation, ...details }, accessToken); }
-export function tenantContext(accessToken, details = {}) { return invoke("tenant-context", details, accessToken); }
